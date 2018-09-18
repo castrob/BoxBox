@@ -34,6 +34,7 @@ import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentTransaction;
 import android.util.Log;
 import android.util.Size;
 import android.util.SparseIntArray;
@@ -54,6 +55,8 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 
 public class CameraFragment extends Fragment{
@@ -62,6 +65,7 @@ public class CameraFragment extends Fragment{
     private FloatingActionButton fab;
     private TextureView textureView;
     private View v;
+    private byte[] imgBytes;
     private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
     static {
         ORIENTATIONS.append(Surface.ROTATION_0,90);
@@ -194,9 +198,10 @@ public class CameraFragment extends Fragment{
             captureBuilder.addTarget(reader.getSurface());
             captureBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
 
+            long imgTime = Calendar.getInstance().getTimeInMillis();
             int rotation = getActivity().getWindowManager().getDefaultDisplay().getRotation();
             captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, ORIENTATIONS.get(rotation));
-            final File file = new File(Environment.getExternalStorageDirectory()+"/pic.png");
+            final File file = new File(Environment.getExternalStorageDirectory()+"/PID_"+ imgTime+ ".png");
             ImageReader.OnImageAvailableListener readerListener = new ImageReader.OnImageAvailableListener() {
                 @Override
                 public void onImageAvailable(ImageReader reader) {
@@ -208,6 +213,7 @@ public class CameraFragment extends Fragment{
                         byte[] bytes = new byte[buffer.capacity()];
                         buffer.get(bytes);
 
+                        /* descomentando e passando byteArray para save, salva em greyscale..
                         Bitmap bitmapImage = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, null);
                         Bitmap bmpGrayscale = Bitmap.createBitmap(bitmapImage.getWidth(), bitmapImage.getHeight(), Bitmap.Config.ARGB_8888);
                         Canvas c = new Canvas(bmpGrayscale);
@@ -221,7 +227,8 @@ public class CameraFragment extends Fragment{
                         ByteArrayOutputStream stream = new ByteArrayOutputStream();
                         bmpGrayscale.compress(Bitmap.CompressFormat.PNG, 50, stream);
                         byte[] byteArray = stream.toByteArray();
-                        save(byteArray);
+                        */
+                        save(bytes);
                     } catch (FileNotFoundException e) {
                         e.printStackTrace();
                     } catch (IOException e) {
@@ -238,6 +245,7 @@ public class CameraFragment extends Fragment{
                     try {
                         output = new FileOutputStream(file);
                         output.write(bytes);
+                        imgBytes = bytes;
                     } finally {
                         if (null != output) {
                             output.close();
@@ -253,8 +261,16 @@ public class CameraFragment extends Fragment{
                 public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
                     super.onCaptureCompleted(session, request, result);
                     Toast.makeText(getActivity(), "Saved!!:" + file, Toast.LENGTH_SHORT).show();
-                    createCameraPreview();
+//                    createCameraPreview();
+                    closeCamera();
                     //TODO Acho que aqui e' um bom lugar para alterar o que ta rolando na imagem.
+                    Bundle bundle = new Bundle();
+                    bundle.putByteArray("IMAGE",imgBytes);
+                    Fragment fragment = new BoxDetectionFragment();
+                    fragment.setArguments(bundle);
+                    FragmentTransaction ft = getActivity().getSupportFragmentManager().beginTransaction();
+                    ft.replace(R.id.content_main, fragment);
+                    ft.commit();
                 }
             };
             cameraDevice.createCaptureSession(outputSurfaces, new CameraCaptureSession.StateCallback() {
