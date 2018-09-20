@@ -21,10 +21,12 @@ import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
+import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -39,6 +41,7 @@ import android.util.Log;
 import android.util.Size;
 import android.util.SparseIntArray;
 import android.view.LayoutInflater;
+import android.view.OrientationEventListener;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
@@ -198,7 +201,7 @@ public class CameraFragment extends Fragment{
             captureBuilder.addTarget(reader.getSurface());
             captureBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
 
-            long imgTime = Calendar.getInstance().getTimeInMillis();
+            final long imgTime = Calendar.getInstance().getTimeInMillis();
             int rotation = getActivity().getWindowManager().getDefaultDisplay().getRotation();
             captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, ORIENTATIONS.get(rotation));
             final File file = new File(Environment.getExternalStorageDirectory()+"/PID_"+ imgTime+ ".png");
@@ -208,6 +211,7 @@ public class CameraFragment extends Fragment{
                     Image image = null;
                     try {
                         image = reader.acquireLatestImage();
+
 
                         ByteBuffer buffer = image.getPlanes()[0].getBuffer();
                         byte[] bytes = new byte[buffer.capacity()];

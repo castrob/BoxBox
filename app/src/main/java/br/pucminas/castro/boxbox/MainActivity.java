@@ -1,6 +1,9 @@
 package br.pucminas.castro.boxbox;
 
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.Fragment;
@@ -15,6 +18,11 @@ import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
@@ -22,7 +30,7 @@ public class MainActivity extends AppCompatActivity
     Fragment fragment;
     FragmentTransaction ft;
     FloatingActionButton fab;
-
+    int PICK_IMAGE = 100;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -84,15 +92,58 @@ public class MainActivity extends AppCompatActivity
                 fab.show();
                 break;
             case R.id.nav_gallery:
-                fragment = new GalleryFragment();
-                ft = getSupportFragmentManager().beginTransaction();
-                ft.replace(R.id.content_main, fragment);
-                ft.commit();
-                fab.show();
+//                fragment = new GalleryFragment();
+//                ft = getSupportFragmentManager().beginTransaction();
+//                ft.replace(R.id.content_main, fragment);
+//                ft.commit();
+//                fab.show();
+                gallery();
                 break;
         }
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
         return true;
     }
+    public void gallery(){
+        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+        startActivityForResult(intent, PICK_IMAGE);
+    }
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+
+        super.onActivityResult(requestCode, resultCode, data);
+        try {
+        if (resultCode == RESULT_OK && requestCode == PICK_IMAGE) {
+
+            Uri selectedImageUri = data.getData();
+            InputStream iStream;
+            iStream = getContentResolver().openInputStream(selectedImageUri);
+            byte[] inputData = getBytes(iStream);
+            Bundle bundle = new Bundle();
+            bundle.putByteArray("IMAGE",inputData);
+            Fragment fragment = new GalleryFragment();
+            fragment.setArguments(bundle);
+            FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+            ft.replace(R.id.content_main, fragment);
+            ft.commit();
+
+        }
+        }catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    public byte[] getBytes(InputStream inputStream) throws IOException {
+        ByteArrayOutputStream byteBuffer = new ByteArrayOutputStream();
+        int bufferSize = 1024;
+        byte[] buffer = new byte[bufferSize];
+
+        int len = 0;
+        while ((len = inputStream.read(buffer)) != -1) {
+            byteBuffer.write(buffer, 0, len);
+        }
+        return byteBuffer.toByteArray();
+    }
+
 }
