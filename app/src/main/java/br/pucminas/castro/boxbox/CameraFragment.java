@@ -94,7 +94,7 @@ public class CameraFragment extends Fragment{
         textureView = (TextureView) v.findViewById(R.id.texture);
         assert textureView != null;
         textureView.setSurfaceTextureListener(textureListener);
-        fab = getActivity().findViewById(R.id.fab);
+        fab = getActivity().findViewById(R.id.fab_camera);
         assert fab != null;
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -212,26 +212,10 @@ public class CameraFragment extends Fragment{
                     try {
                         image = reader.acquireLatestImage();
 
-
                         ByteBuffer buffer = image.getPlanes()[0].getBuffer();
                         byte[] bytes = new byte[buffer.capacity()];
                         buffer.get(bytes);
 
-                        /* descomentando e passando byteArray para save, salva em greyscale..
-                        Bitmap bitmapImage = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, null);
-                        Bitmap bmpGrayscale = Bitmap.createBitmap(bitmapImage.getWidth(), bitmapImage.getHeight(), Bitmap.Config.ARGB_8888);
-                        Canvas c = new Canvas(bmpGrayscale);
-                        Paint paint = new Paint();
-                        ColorMatrix cm = new ColorMatrix();
-                        cm.setSaturation(0);
-                        ColorMatrixColorFilter f = new ColorMatrixColorFilter(cm);
-                        paint.setColorFilter(f);
-                        c.drawBitmap(bitmapImage, 0, 0, paint);
-
-                        ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                        bmpGrayscale.compress(Bitmap.CompressFormat.PNG, 50, stream);
-                        byte[] byteArray = stream.toByteArray();
-                        */
                         save(bytes);
                     } catch (FileNotFoundException e) {
                         e.printStackTrace();
@@ -294,15 +278,6 @@ public class CameraFragment extends Fragment{
             e.printStackTrace();
         }
     }
-
-//    private void showGrayScale() {
-//        File imgFile = new  File(Environment.getExternalStorageDirectory()+"/pic.png");
-//        if(imgFile.exists()){
-//            Bitmap myBitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
-//            ImageView myImage = (ImageView) v.findViewById(R.id.imageviewTest);
-//            myImage.setImageBitmap(myBitmap);
-//        }
-//    }
 
     /**
      * Metodo que configura o TextureView com o surface texture
@@ -398,8 +373,9 @@ public class CameraFragment extends Fragment{
     }
     @Override
     public void onPause() {
-
         closeCamera();
+        imgBytes = null;
+        file = null;
         stopBackgroundThread();
         super.onPause();
     }

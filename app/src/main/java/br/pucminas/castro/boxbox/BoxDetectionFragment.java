@@ -24,6 +24,7 @@ public class BoxDetectionFragment extends Fragment{
         ImageView imageView = v.findViewById(R.id.boxImage);
         Bundle b = this.getArguments();
         byte[] imgBytes = b.getByteArray("IMAGE");
+        b.putByteArray("IMAGE", null);
         Bitmap bitmap = BitmapFactory.decodeByteArray(imgBytes,0,imgBytes.length);
         Bitmap bmpGrayscale = Bitmap.createBitmap(bitmap.getWidth(), bitmap.getHeight(), Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmpGrayscale);
@@ -34,6 +35,13 @@ public class BoxDetectionFragment extends Fragment{
         paint.setColorFilter(f);
         c.drawBitmap(bitmap, 0, 0, paint);
         imageView.setImageBitmap(bmpGrayscale);
+        bitmap = null;
+        imgBytes = null;
+        c = null;
+        paint = null;
+        cm = null;
+        f = null;
+        bmpGrayscale = null;
         return v;
     }
 
@@ -41,7 +49,9 @@ public class BoxDetectionFragment extends Fragment{
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         getActivity().setTitle("Box Detection");
-        FloatingActionButton fab = getActivity().findViewById(R.id.fab);
-        fab.hide();
+        FloatingActionButton fab_camera = getActivity().findViewById(R.id.fab_camera);
+        fab_camera.hide();
+        FloatingActionButton fab_gallery = getActivity().findViewById(R.id.fab_gallery);
+        fab_gallery.hide();
     }
 }

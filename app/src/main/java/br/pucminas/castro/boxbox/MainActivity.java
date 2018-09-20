@@ -29,7 +29,7 @@ public class MainActivity extends AppCompatActivity
 
     Fragment fragment;
     FragmentTransaction ft;
-    FloatingActionButton fab;
+    FloatingActionButton fab_camera, fab_gallery;
     int PICK_IMAGE = 100;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,14 +38,8 @@ public class MainActivity extends AppCompatActivity
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
-        });
+        fab_camera = (FloatingActionButton) findViewById(R.id.fab_camera);
+        fab_gallery = (FloatingActionButton) findViewById(R.id.fab_gallery);
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
@@ -59,7 +53,8 @@ public class MainActivity extends AppCompatActivity
         ft = getSupportFragmentManager().beginTransaction();
         ft.add(R.id.content_main, new HomeFragment(), "Inicio");
         ft.commit();
-        fab.hide();
+        fab_camera.hide();
+        fab_gallery.hide();
     }
 
     @Override
@@ -82,14 +77,16 @@ public class MainActivity extends AppCompatActivity
                 ft = getSupportFragmentManager().beginTransaction();
                 ft.replace(R.id.content_main, fragment);
                 ft.commit();
-                fab.hide();
+                fab_gallery.hide();
+                fab_camera.hide();
                 break;
             case R.id.nav_camera:
                 fragment = new CameraFragment();
                 ft = getSupportFragmentManager().beginTransaction();
                 ft.replace(R.id.content_main, fragment);
                 ft.commit();
-                fab.show();
+                fab_camera.show();
+                fab_gallery.hide();
                 break;
             case R.id.nav_gallery:
 //                fragment = new GalleryFragment();
@@ -97,6 +94,8 @@ public class MainActivity extends AppCompatActivity
 //                ft.replace(R.id.content_main, fragment);
 //                ft.commit();
 //                fab.show();
+                fab_gallery.show();
+                fab_camera.hide();
                 gallery();
                 break;
         }
@@ -121,7 +120,7 @@ public class MainActivity extends AppCompatActivity
             byte[] inputData = getBytes(iStream);
             Bundle bundle = new Bundle();
             bundle.putByteArray("IMAGE",inputData);
-            Fragment fragment = new GalleryFragment();
+            fragment = new GalleryFragment();
             fragment.setArguments(bundle);
             FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
             ft.replace(R.id.content_main, fragment);

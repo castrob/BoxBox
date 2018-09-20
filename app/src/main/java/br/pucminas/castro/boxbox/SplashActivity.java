@@ -26,6 +26,8 @@ public class SplashActivity extends AppCompatActivity {
     private void startBox() {
         Intent intent = new Intent(this,MainActivity.class);
         startActivity(intent);
+        this.finish();
+
     }
 
     private boolean checkAllPermissions(){
