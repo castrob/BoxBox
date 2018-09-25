@@ -3,6 +3,7 @@ package br.pucminas.castro.boxbox;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.ColorMatrix;
 import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Paint;
@@ -22,25 +23,32 @@ public class BoxDetectionFragment extends Fragment{
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View v = inflater.inflate(R.layout.box_detection_fragment,container,false);
         ImageView imageView = v.findViewById(R.id.boxImage);
-        Bundle b = this.getArguments();
-        byte[] imgBytes = b.getByteArray("IMAGE");
-        b.putByteArray("IMAGE", null);
+
+        Bundle bundle = this.getArguments();
+        byte[] imgBytes = bundle.getByteArray("IMAGE");
+        bundle.putByteArray("IMAGE", null);
         Bitmap bitmap = BitmapFactory.decodeByteArray(imgBytes,0,imgBytes.length);
+
         Bitmap bmpGrayscale = Bitmap.createBitmap(bitmap.getWidth(), bitmap.getHeight(), Bitmap.Config.ARGB_8888);
-        Canvas c = new Canvas(bmpGrayscale);
-        Paint paint = new Paint();
-        ColorMatrix cm = new ColorMatrix();
-        cm.setSaturation(0);
-        ColorMatrixColorFilter f = new ColorMatrixColorFilter(cm);
-        paint.setColorFilter(f);
-        c.drawBitmap(bitmap, 0, 0, paint);
+        int pixel, a, r, g, b;
+
+        for(int x = 0; x < bmpGrayscale.getWidth(); x++)
+            for(int y = 0; y < bmpGrayscale.getHeight(); y++){
+                pixel = bitmap.getPixel(x, y);
+
+                a = Color.alpha(pixel);
+                r = Color.red(pixel);
+                g = Color.green(pixel);
+                b = Color.blue(pixel);
+
+                r = g = b = (int)(0.299 * r + 0.587 * g + 0.114 * b);
+                bmpGrayscale.setPixel(x, y, Color.argb(a,r,g,b));
+            }
+
         imageView.setImageBitmap(bmpGrayscale);
+
         bitmap = null;
         imgBytes = null;
-        c = null;
-        paint = null;
-        cm = null;
-        f = null;
         bmpGrayscale = null;
         return v;
     }
