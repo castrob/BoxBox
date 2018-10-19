@@ -8,6 +8,7 @@ import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentTransaction;
+import android.util.Log;
 import android.view.View;
 import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
@@ -18,6 +19,11 @@ import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import org.opencv.android.BaseLoaderCallback;
+import org.opencv.android.LoaderCallbackInterface;
+import org.opencv.android.OpenCVLoader;
+import org.opencv.core.Mat;
+
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -27,6 +33,24 @@ public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
 
+//    private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
+//        @Override
+//        public void onManagerConnected(int status) {
+//            switch (status) {
+//                case LoaderCallbackInterface.SUCCESS:
+//                {
+//                    Log.i("OpenCV", "OpenCV loaded successfully");
+//                   // rgba=new Mat();
+//                } break;
+//                default:
+//                {
+//                    super.onManagerConnected(status);
+//                } break;
+//            }
+//        }
+//    };
+
+    private static final String TAG = "OK" ;
     Fragment fragment;
     FragmentTransaction ft;
     FloatingActionButton fab_camera, fab_gallery;
@@ -37,6 +61,31 @@ public class MainActivity extends AppCompatActivity
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
+        BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
+            @Override
+            public void onManagerConnected(int status) {
+                switch (status) {
+                    case LoaderCallbackInterface.SUCCESS:
+                    {
+                        Log.d("OpenCV", "OpenCV loaded successfully");
+                        // rgba=new Mat();
+                    } break;
+                    default:
+                    {
+                        super.onManagerConnected(status);
+                    } break;
+                }
+            }
+        };
+
+        if (!OpenCVLoader.initDebug()) {
+            Log.d("OpenCV", "Internal OpenCV library not found. Using OpenCV Manager for initialization");
+            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this, mLoaderCallback);
+        } else {
+            Log.d("OpenCV", "OpenCV library found inside package. Using it!");
+            mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
+        }
 
         fab_camera = (FloatingActionButton) findViewById(R.id.fab_camera);
         fab_gallery = (FloatingActionButton) findViewById(R.id.fab_gallery);
@@ -145,4 +194,11 @@ public class MainActivity extends AppCompatActivity
         return byteBuffer.toByteArray();
     }
 
+
+//    @Override
+//    protected void onResume() {
+//        super.onResume();
+//
+//
+//    }
 }
