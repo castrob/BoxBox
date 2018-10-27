@@ -34,8 +34,9 @@ public class GalleryFragment extends Fragment{
         imageView = (ImageView) v.findViewById(R.id.image_ViewGallery);
         imageView.setImageBitmap(bitmap);
         bitmap = null;
-        FloatingActionButton fab_gallery = getActivity().findViewById(R.id.fab_gallery);
-        fab_gallery.setOnClickListener(new View.OnClickListener() {
+
+        FloatingActionButton fab = getActivity().findViewById(R.id.fab);
+        fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Fragment fragment = new BoxDetectionFragment();

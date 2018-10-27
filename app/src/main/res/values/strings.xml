@@ -14,4 +14,16 @@
     <string name="dev2">Paulo Junio Reis</string>
     <string name="dev3">Guilherme Galvão</string>
     <string name="professor">Alexei Machado</string>
+    <string name="minCannySoft">0</string>
+    <string name="maxCannySoft">250</string>
+    <string name="minCannyStrong">0</string>
+    <string name="maxCannyStrong">250</string>
+    <string name="actualCannySoft">50</string>
+    <string name="actualCannyStrong">50</string>
+    <string name="canny_strong_borders">Canny strong borders</string>
+    <string name="canny_soft_borders">Canny soft borders</string>
+    <string name="canny_options">Canny Options</string>
+    <string name="cancel">Cancel</string>
+    <string name="ok">Ok</string>
+    <string name="user_settings">User Settings</string>
 </resources>
