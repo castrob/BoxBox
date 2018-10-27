@@ -8,11 +8,22 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
+
+import org.opencv.android.OpenCVLoader;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class SplashActivity extends AppCompatActivity {
+
+    static {
+        if (OpenCVLoader.initDebug()) {
+            Log.i("SPLASH-OPENCV: ", "OpenCV initialize success");
+        } else {
+            Log.i("SPLASH-OPENCV: ", "OpenCV initialize failed");
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -27,7 +38,6 @@ public class SplashActivity extends AppCompatActivity {
         Intent intent = new Intent(this,MainActivity.class);
         startActivity(intent);
         this.finish();
-
     }
 
     private boolean checkAllPermissions(){
