@@ -24,6 +24,8 @@ import android.widget.Toast;
 import org.opencv.android.Utils;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.Point;
+import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
 
 public class BoxDetectionFragment extends Fragment{
@@ -73,16 +75,41 @@ public class BoxDetectionFragment extends Fragment{
 
         Mat rgba = new Mat();
         Utils.bitmapToMat(bitmap, rgba);
-
         Mat edges = new Mat(rgba.size(), CvType.CV_8UC1);
         Imgproc.cvtColor(rgba, edges, Imgproc.COLOR_RGB2GRAY, 4);
-
-        Imgproc.Canny(edges, edges, cannySoft, cannyStrong);
+        //Method canny to find edges.
+        Imgproc.Canny(edges, edges, cannySoft, cannyStrong,3,false);
         Toast.makeText(getActivity(), "Running Canny with Values (" + cannySoft + ", " + cannyStrong + ") ", Toast.LENGTH_SHORT).show();
-
+        Mat cdst = new Mat();
+        Imgproc.cvtColor(edges, cdst, Imgproc.COLOR_GRAY2BGR);
+        Mat cdstP = cdst.clone();
+        // Standard Hough Line Transform
+        /*Mat lines = new Mat(); // will hold the results of the detection
+        Imgproc.HoughLines(edges, lines, 1, Math.PI/180, 150); // runs the actual detection
+        // Draw the lines
+        for (int x = 0; x < lines.rows(); x++) {
+            double rho = lines.get(x, 0)[0],
+                    theta = lines.get(x, 0)[1];
+            double a = Math.cos(theta), b = Math.sin(theta);
+            double x0 = a*rho, y0 = b*rho;
+            Point pt1 = new Point(Math.round(x0 + 1000*(-b)), Math.round(y0 + 1000*(a)));
+            Point pt2 = new Point(Math.round(x0 - 1000*(-b)), Math.round(y0 - 1000*(a)));
+            Imgproc.line(cdst, pt1, pt2, new Scalar(0, 0, 255), 3, Imgproc.LINE_AA, 0);
+        }*/
+        //Now using Hough Probabilistic Line Transform.
+        // Probabilistic Line Transform.
+        Mat linesP = new Mat(); // will hold the results of the detection
+        Imgproc.HoughLinesP(edges, linesP, 1, Math.PI/180, 50, 50, 10); // runs the actual detection
+        // Draw the lines
+        for (int x = 0; x < linesP.rows(); x++) {
+            double[] l = linesP.get(x, 0);
+            Imgproc.line(cdstP, new Point(l[0], l[1]), new Point(l[2], l[3]), new Scalar(0, 0, 255), 3, Imgproc.LINE_AA, 0);
+        }
         // Don't do that at home or work it's for visualization purpose.
-        Bitmap resultBitmap = Bitmap.createBitmap(edges.cols(), edges.rows(), Bitmap.Config.ARGB_8888);
-        Utils.matToBitmap(edges, resultBitmap);
+        //Bitmap resultBitmap = Bitmap.createBitmap(edges.cols(), edges.rows(), Bitmap.Config.ARGB_8888);
+        //Utils.matToBitmap(edges, resultBitmap);
+        Bitmap resultBitmap = Bitmap.createBitmap(cdstP.cols(), cdstP.rows(), Bitmap.Config.ARGB_8888);
+        Utils.matToBitmap(cdstP, resultBitmap);
         imageView.setImageBitmap(resultBitmap);
     }
 
