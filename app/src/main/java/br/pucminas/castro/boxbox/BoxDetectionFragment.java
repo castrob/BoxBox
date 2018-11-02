@@ -28,6 +28,8 @@ import org.opencv.core.Point;
 import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
 
+import java.util.ArrayList;
+
 public class BoxDetectionFragment extends Fragment{
     ImageView imageView;
     Bitmap bitmap;
@@ -83,36 +85,57 @@ public class BoxDetectionFragment extends Fragment{
         Mat cdst = new Mat();
         Imgproc.cvtColor(edges, cdst, Imgproc.COLOR_GRAY2BGR);
         Mat cdstP = cdst.clone();
-        // Standard Hough Line Transform
-        /*Mat lines = new Mat(); // will hold the results of the detection
-        Imgproc.HoughLines(edges, lines, 1, Math.PI/180, 150); // runs the actual detection
-        // Draw the lines
-        for (int x = 0; x < lines.rows(); x++) {
-            double rho = lines.get(x, 0)[0],
-                    theta = lines.get(x, 0)[1];
-            double a = Math.cos(theta), b = Math.sin(theta);
-            double x0 = a*rho, y0 = b*rho;
-            Point pt1 = new Point(Math.round(x0 + 1000*(-b)), Math.round(y0 + 1000*(a)));
-            Point pt2 = new Point(Math.round(x0 - 1000*(-b)), Math.round(y0 - 1000*(a)));
-            Imgproc.line(cdst, pt1, pt2, new Scalar(0, 0, 255), 3, Imgproc.LINE_AA, 0);
-        }*/
         //Now using Hough Probabilistic Line Transform.
         // Probabilistic Line Transform.
         Mat linesP = new Mat(); // will hold the results of the detection
-        Imgproc.HoughLinesP(edges, linesP, 1, Math.PI/180, 50, 50, 10); // runs the actual detection
+        Imgproc.HoughLinesP(edges, linesP, 1, Math.PI/180, 50,20,10); // runs the actual detection
+        ArrayList<Linhas> linhas = new ArrayList<Linhas>();
+        Linhas linha;
         // Draw the lines
         for (int x = 0; x < linesP.rows(); x++) {
             double[] l = linesP.get(x, 0);
-            Imgproc.line(cdstP, new Point(l[0], l[1]), new Point(l[2], l[3]), new Scalar(0, 0, 255), 3, Imgproc.LINE_AA, 0);
+            Imgproc.line(cdstP, new Point(l[0], l[1]), new Point(l[2], l[3]), new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
+            linha = new Linhas(new Point(l[0], l[1]), new Point(l[2], l[3]));
+            linhas.add(linha);
         }
+        findBoxes(linhas,0.2);
         // Don't do that at home or work it's for visualization purpose.
-        //Bitmap resultBitmap = Bitmap.createBitmap(edges.cols(), edges.rows(), Bitmap.Config.ARGB_8888);
-        //Utils.matToBitmap(edges, resultBitmap);
         Bitmap resultBitmap = Bitmap.createBitmap(cdstP.cols(), cdstP.rows(), Bitmap.Config.ARGB_8888);
         Utils.matToBitmap(cdstP, resultBitmap);
         imageView.setImageBitmap(resultBitmap);
     }
 
+    private void findBoxes(ArrayList<Linhas> linhas,double diferencaCoeficiente) {
+
+        ArrayList<LinhasParalelas> todasLinhasParalelas = new ArrayList<LinhasParalelas>();
+        LinhasParalelas linhasParalelas;
+
+        for(int i = 0; i < linhas.size(); i++){
+            linhasParalelas = new LinhasParalelas();
+            linhasParalelas.linhas.add(linhas.get(i));
+            System.out.println("A Teste: " + linhas.get(i).a);
+            linhas.remove(i);
+            i--;
+            for(int j = i+1;  j < linhas.size();j++){
+                double coeficienteAngular1 = linhasParalelas.linhas.get(0).a;
+                double coeficienteAngular2 = linhas.get(j).a;
+                if((coeficienteAngular1 - diferencaCoeficiente) <= coeficienteAngular2 && (coeficienteAngular1 + diferencaCoeficiente) >= coeficienteAngular2 ) {
+                    linhasParalelas.linhas.add(linhas.get(j));
+                    linhas.remove(j);
+                    j--;
+                }
+            }
+
+            if(linhasParalelas.linhas.size() >= 3) {
+                System.out.println("Passo aqui");
+                todasLinhasParalelas.add(linhasParalelas);
+                for(int p = 0; p < linhasParalelas.linhas.size();p++){
+                    System.out.println("Valor: " + p + ": " + linhasParalelas.linhas.get(p).a);
+                }
+            }
+        }
+
+    }
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         doTheDialogThing();
