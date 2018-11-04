@@ -33,6 +33,7 @@ import java.util.ArrayList;
 public class BoxDetectionFragment extends Fragment{
     ImageView imageView;
     Bitmap bitmap;
+    ArrayList<LinhasParalelas> linhasParalelas;
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -98,14 +99,75 @@ public class BoxDetectionFragment extends Fragment{
             linha = new Linhas(new Point(l[0], l[1]), new Point(l[2], l[3]));
             linhas.add(linha);
         }
-        findBoxes(linhas,0.2);
+        linhasParalelas = findGroups(linhas,0.2);
+        int [] x = new int[linhasParalelas.size()];
+        combinationTodasRetas(linhasParalelas.size(),3,x,0,0);
         // Don't do that at home or work it's for visualization purpose.
         Bitmap resultBitmap = Bitmap.createBitmap(cdstP.cols(), cdstP.rows(), Bitmap.Config.ARGB_8888);
         Utils.matToBitmap(cdstP, resultBitmap);
         imageView.setImageBitmap(resultBitmap);
     }
 
-    private void findBoxes(ArrayList<Linhas> linhas,double diferencaCoeficiente) {
+    private void combinationTodasRetas(int n, int r, int x [],int next,int k) {
+        int i;
+        if(k == r) {
+            int size = linhasParalelas.get(x[0]).linhas.size();
+            int [] tmp = new int [size];
+            combination1(size,3,tmp,0,0,x);
+        }else{
+            for(i = next; i < n; i++) {
+                x[k] = i;
+                combinationTodasRetas(n,r,x,i+1,k+1);
+            }
+        }
+    }
+
+    private void combination1(int n, int r, int x [], int next, int k, int [] vetorRetasParalelas) {
+        int i;
+        if(k == r) {
+            int size = linhasParalelas.get(x[1]).linhas.size();
+            int [] tmp = new int [size];
+            combination2(size,3,tmp,0,0,vetorRetasParalelas,x);
+        }else{
+            for(i = next; i < n; i++) {
+                x[k] = i;
+                combinationTodasRetas(n,r,x,i+1,k+1);
+            }
+        }
+    }
+
+    private void combination2(int n , int r, int x [] , int next, int k, int [] vetorRetasParalelas, int [] primeirasRetas) {
+        int i;
+        if(k == r) {
+            int size = linhasParalelas.get(x[2]).linhas.size();
+            int [] tmp = new int [size];
+            combination3(size,3,tmp,0,0,vetorRetasParalelas,primeirasRetas,x);
+        }else{
+            for(i = next; i < n; i++) {
+                x[k] = i;
+                combinationTodasRetas(n,r,x,i+1,k+1);
+            }
+        }
+    }
+
+    private void combination3(int n, int r, int x [], int next, int k, int [] vetorRetasParalelas, int [] primeiraRetas, int [] segundaRetas) {
+        int i;
+        if(k == r) {
+            findBoxes(vetorRetasParalelas,primeiraRetas,segundaRetas,x);
+        }else{
+            for(i = next; i < n; i++) {
+                x[k] = i;
+                combinationTodasRetas(n,r,x,i+1,k+1);
+            }
+        }
+    }
+
+    private void findBoxes(int [] vetorRetasParalelas, int [] primeiraReta, int [] segundaRetas, int [] terceiraRetas) {
+
+        //https://docs.opencv.org/3.0-beta/doc/py_tutorials/py_feature2d/py_features_harris/py_features_harris.html Codigo para achar os vertices, e verificar se achou 9.
+
+    }
+    private ArrayList<LinhasParalelas> findGroups(ArrayList<Linhas> linhas,double diferencaCoeficiente) {
 
         ArrayList<LinhasParalelas> todasLinhasParalelas = new ArrayList<LinhasParalelas>();
         LinhasParalelas linhasParalelas;
@@ -134,8 +196,10 @@ public class BoxDetectionFragment extends Fragment{
                 }
             }
         }
-
+        return todasLinhasParalelas;
     }
+
+
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         doTheDialogThing();
