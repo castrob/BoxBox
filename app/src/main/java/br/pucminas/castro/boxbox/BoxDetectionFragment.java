@@ -120,6 +120,9 @@ public class BoxDetectionFragment extends Fragment{
     }
 
     public void doTheDialogThing(){
+        SharedPreferences sharedPreferences = getActivity().getSharedPreferences("BoxBoxPrefs", Context.MODE_PRIVATE);
+
+
         final Dialog dialog = new Dialog(getActivity());
         dialog.setContentView(R.layout.settings_dialog);
         dialog.setTitle("User Settings");
@@ -159,8 +162,8 @@ public class BoxDetectionFragment extends Fragment{
 
             }
         });
-        cannySoftSeekBar.setProgress(50);
-        cannyStrongSeekBar.setProgress(180);
+        cannySoftSeekBar.setProgress(sharedPreferences.getInt("cannySoft", 50));
+        cannyStrongSeekBar.setProgress(sharedPreferences.getInt("cannyStrong", 180));
 
         Button ok = dialog.findViewById(R.id.dialogOk);
         Button cancel = dialog.findViewById(R.id.dialogCancel);
