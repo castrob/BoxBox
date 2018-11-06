@@ -34,7 +34,8 @@ public class BoxDetectionFragment extends Fragment{
     ImageView imageView;
     Bitmap bitmap;
     ArrayList<LinhasParalelas> linhasParalelas;
-
+    boolean flag;
+    Mat cdstP;
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -87,9 +88,8 @@ public class BoxDetectionFragment extends Fragment{
         //Method canny to find edges.
         Imgproc.Canny(edges, edges, cannySoft, cannyStrong,3,false);
         Toast.makeText(getActivity(), "Running Canny with Values (" + cannySoft + ", " + cannyStrong + ") ", Toast.LENGTH_SHORT).show();
-        Mat cdst = new Mat();
-        Imgproc.cvtColor(edges, cdst, Imgproc.COLOR_GRAY2BGR);
-        Mat cdstP = cdst.clone();
+        cdstP = new Mat();
+        Imgproc.cvtColor(edges, cdstP, Imgproc.COLOR_GRAY2BGR);
         //Now using Hough Probabilistic Line Transform.
         // Probabilistic Line Transform.
         Mat linesP = new Mat(); // will hold the results of the detection
@@ -99,77 +99,138 @@ public class BoxDetectionFragment extends Fragment{
         // Draw the lines
         for (int x = 0; x < linesP.rows(); x++) {
             double[] l = linesP.get(x, 0);
-            Imgproc.line(cdstP, new Point(l[0], l[1]), new Point(l[2], l[3]), new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
+            //Imgproc.line(cdstP, new Point(l[0], l[1]), new Point(l[2], l[3]), new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
             linha = new Linhas(new Point(l[0], l[1]), new Point(l[2], l[3]));
             linhas.add(linha);
         }
         linhasParalelas = findGroups(linhas,0.2);
         int [] x = new int[linhasParalelas.size()];
+        flag = false;
         combinationTodasRetas(linhasParalelas.size(),3,x,0,0);
         // Don't do that at home or work it's for visualization purpose.
-        Bitmap resultBitmap = Bitmap.createBitmap(cdstP.cols(), cdstP.rows(), Bitmap.Config.ARGB_8888);
-        Utils.matToBitmap(cdstP, resultBitmap);
-        imageView.setImageBitmap(resultBitmap);
+        if(flag == true) {
+            Bitmap resultBitmap = Bitmap.createBitmap(cdstP.cols(), cdstP.rows(), Bitmap.Config.ARGB_8888);
+            Utils.matToBitmap(cdstP, resultBitmap);
+            imageView.setImageBitmap(resultBitmap);
+        }
     }
 
     private void combinationTodasRetas(int n, int r, int x [],int next,int k) {
         int i;
-        if(k == r) {
+        if(k == r && flag != true) {
             int size = linhasParalelas.get(x[0]).linhas.size();
             int [] tmp = new int [size];
             combination1(size,3,tmp,0,0,x);
         }else{
             for(i = next; i < n; i++) {
                 x[k] = i;
-                combinationTodasRetas(n,r,x,i+1,k+1);
+                if(flag != true)
+                    combinationTodasRetas(n,r,x,i+1,k+1);
             }
         }
     }
 
     private void combination1(int n, int r, int x [], int next, int k, int [] vetorRetasParalelas) {
         int i;
-        if(k == r) {
+        if(k == r && flag != true) {
             int size = linhasParalelas.get(x[1]).linhas.size();
             int [] tmp = new int [size];
             combination2(size,3,tmp,0,0,vetorRetasParalelas,x);
         }else{
             for(i = next; i < n; i++) {
                 x[k] = i;
-                combinationTodasRetas(n,r,x,i+1,k+1);
+                if(flag != true)
+                    combination1(n,r,x,i+1,k+1,vetorRetasParalelas);
             }
         }
     }
 
     private void combination2(int n , int r, int x [] , int next, int k, int [] vetorRetasParalelas, int [] primeirasRetas) {
         int i;
-        if(k == r) {
+        if(k == r && flag != true) {
             int size = linhasParalelas.get(x[2]).linhas.size();
             int [] tmp = new int [size];
             combination3(size,3,tmp,0,0,vetorRetasParalelas,primeirasRetas,x);
         }else{
             for(i = next; i < n; i++) {
                 x[k] = i;
-                combinationTodasRetas(n,r,x,i+1,k+1);
+                if(flag != true)
+                    combination2(n,r,x,i+1,k+1,vetorRetasParalelas,primeirasRetas);
             }
         }
     }
 
-    private void combination3(int n, int r, int x [], int next, int k, int [] vetorRetasParalelas, int [] primeiraRetas, int [] segundaRetas) {
+    private void combination3(int n, int r, int x [], int next, int k, int [] vetorRetasParalelas, int [] primeirasRetas, int [] segundasRetas) {
         int i;
-        if(k == r) {
-            findBoxes(vetorRetasParalelas,primeiraRetas,segundaRetas,x);
+        if(k == r && flag != true) {
+            findBoxes(vetorRetasParalelas,primeirasRetas,segundasRetas,x);
         }else{
             for(i = next; i < n; i++) {
                 x[k] = i;
-                combinationTodasRetas(n,r,x,i+1,k+1);
+                if(flag != true)
+                    combination3(n,r,x,i+1,k+1,vetorRetasParalelas,primeirasRetas,segundasRetas);
             }
         }
     }
 
-    private void findBoxes(int [] vetorRetasParalelas, int [] primeiraReta, int [] segundaRetas, int [] terceiraRetas) {
+    private void findBoxes(int [] vetorRetasParalelas, int [] primeirasRetas, int [] segundasRetas, int [] terceirasRetas) {
+        Point um,dois,tmp1,tmp2;
+        int distancia = 10;
+        int contador = 0;
+        for(int i = 0; i < 3; i++) {
+            um = linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).primeiro;
+            dois = linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).ultimo;
+            for(int j = 0; j < 3; j++) {
+                tmp1 = linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[j]).primeiro;
+                tmp2 = linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[j]).ultimo;
+                if(distanciaEuclidiana(um,tmp1) <= distancia) {
+                    contador++;
+                }
+                if(distanciaEuclidiana(um,tmp2) <= distancia) {
+                    contador++;
+                }if(distanciaEuclidiana(dois,tmp1) <= distancia) {
+                    contador++;
+                }
+                if(distanciaEuclidiana(dois,tmp2) <= distancia) {
+                    contador++;
+                }
+            }
+            for(int j = 0; j < 3; j++) {
+                tmp1 = linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[j]).primeiro;
+                tmp2 = linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[j]).ultimo;
+                if(distanciaEuclidiana(um,tmp1) <= distancia) {
+                    contador++;
+                }
+                if(distanciaEuclidiana(um,tmp2) <= distancia) {
+                    contador++;
+                }
+                if(distanciaEuclidiana(dois,tmp1) <= distancia) {
+                    contador++;
+                }
+                if(distanciaEuclidiana(dois,tmp2) <= distancia) {
+                    contador++;
+                }
+            }
+        }
 
-        //https://docs.opencv.org/3.0-beta/doc/py_tutorials/py_feature2d/py_features_harris/py_features_harris.html Codigo para achar os vertices, e verificar se achou 9.
+        if(contador == 10) {
+            flag = true;
+            for(int i = 0; i < 3; i++){
+                Imgproc.line(cdstP, linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).primeiro, linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
+            }
+            for(int i = 0; i < 3; i++){
+                Imgproc.line(cdstP, linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]).primeiro, linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
+            }
+            for(int i = 0; i < 3; i++){
+                Imgproc.line(cdstP, linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).primeiro, linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
+            }
+        }
+    }
 
+    private double distanciaEuclidiana(Point um, Point dois) {
+
+        double distancia = Math.sqrt(Math.pow(dois.x - um.x, 2) + Math.pow(dois.y - um.y, 2));
+        return distancia;
     }
     private ArrayList<LinhasParalelas> findGroups(ArrayList<Linhas> linhas,double diferencaCoeficiente) {
 
