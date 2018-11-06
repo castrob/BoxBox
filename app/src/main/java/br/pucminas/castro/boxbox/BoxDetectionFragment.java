@@ -34,22 +34,20 @@ public class BoxDetectionFragment extends Fragment{
     ImageView imageView;
     Bitmap bitmap;
     ArrayList<LinhasParalelas> linhasParalelas;
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View v = inflater.inflate(R.layout.box_detection_fragment,container,false);
         imageView = v.findViewById(R.id.boxImage);
         setHasOptionsMenu(true);
+
         // Assegurando que nada e' null e pegando array de bytes da imagem
         if (getArguments() != null) {
             byte[] imgBytes = getArguments().getByteArray("IMAGE");
             if (imgBytes != null) {
                 bitmap = BitmapFactory.decodeByteArray(imgBytes,0,imgBytes.length);
-                try{
-                    detectEdges();
-                }catch (Exception e){
-                    e.printStackTrace();
-                }
+                imageView.setImageBitmap(bitmap);
             }
         }
         return v;
@@ -69,6 +67,12 @@ public class BoxDetectionFragment extends Fragment{
                 doTheDialogThing();
             }
         });
+        //Realizar o procedimento de detecção de bordas após o fragment ter carregado.
+        try{
+            detectEdges();
+        }catch (Exception e){
+            e.printStackTrace();
+        }
     }
 
     private void detectEdges() {
@@ -211,11 +215,16 @@ public class BoxDetectionFragment extends Fragment{
         dialog.setContentView(R.layout.settings_dialog);
         dialog.setTitle("User Settings");
 
+        SharedPreferences sharedPreferences = getActivity().getSharedPreferences("BoxBoxPrefs", Context.MODE_PRIVATE);
+        int cannySoftPreviousPref = sharedPreferences.getInt("cannySoft", 50);
+        int cannyStrongPreviousPref = sharedPreferences.getInt("cannyStrong", 100);
+
         final TextView cannySoft = dialog.findViewById(R.id.actualCannyLow);
         final TextView cannyStrong = dialog.findViewById(R.id.actualCannyStrong);
 
         final SeekBar cannySoftSeekBar = dialog.findViewById(R.id.cannyLowBorders);
         final SeekBar cannyStrongSeekBar = dialog.findViewById(R.id.cannyStrogBorders);
+
         cannySoftSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
@@ -246,8 +255,8 @@ public class BoxDetectionFragment extends Fragment{
 
             }
         });
-        cannySoftSeekBar.setProgress(50);
-        cannyStrongSeekBar.setProgress(180);
+        cannySoftSeekBar.setProgress(cannySoftPreviousPref);
+        cannyStrongSeekBar.setProgress(cannyStrongPreviousPref);
 
         Button ok = dialog.findViewById(R.id.dialogOk);
         Button cancel = dialog.findViewById(R.id.dialogCancel);

@@ -3,6 +3,7 @@ package br.pucminas.castro.boxbox;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.os.Environment;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -12,6 +13,7 @@ import android.util.Log;
 
 import org.opencv.android.OpenCVLoader;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,6 +32,15 @@ public class SplashActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_splash);
         if(checkAllPermissions()){
+            File folder = new File(Environment.getExternalStorageDirectory() + File.separator + "BoxBox");
+            boolean success = true;
+            if (!folder.exists())
+                success = folder.mkdirs();
+            if(success)
+                Log.d("SPLASH", "Folder Created");
+            else
+                Log.d("SPLASH", "Folder not Created!");
+
             startBox();
         }
     }

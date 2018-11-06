@@ -1,6 +1,8 @@
 package br.pucminas.castro.boxbox;
 
 import android.Manifest;
+import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
@@ -20,6 +22,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
@@ -30,6 +33,7 @@ import android.util.Log;
 import android.util.Size;
 import android.util.SparseIntArray;
 import android.view.LayoutInflater;
+import android.view.OrientationEventListener;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
@@ -46,13 +50,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
+import java.util.Locale;
 
 public class CameraFragment extends Fragment{
-
     private static final String TAG = "CameraFragment";
-    private FloatingActionButton fab;
+
+
     private TextureView textureView;
-    private View v;
+
     private byte[] imgBytes;
     private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
     static {
@@ -61,25 +66,23 @@ public class CameraFragment extends Fragment{
         ORIENTATIONS.append(Surface.ROTATION_180,270);
         ORIENTATIONS.append(Surface.ROTATION_270,180);
     }
-    private String cameraId;
+
     protected CameraDevice cameraDevice;
     protected CameraCaptureSession cameraCaptureSession;
-    protected CaptureRequest captureRequest;
     protected CaptureRequest.Builder captureRequestBuilder;
     private Size imageDimension;
     private ImageReader imageReader;
-    private File file;
-    private boolean mFlashSupported;
     private Handler mBackgroundHandler;
     private HandlerThread mBackgroundThread;
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        v = inflater.inflate(R.layout.camera_fragment, container, false);
-        textureView = (TextureView) v.findViewById(R.id.texture);
-        assert textureView != null;
+        View v = inflater.inflate(R.layout.camera_fragment, container, false);
+        textureView = v.findViewById(R.id.texture);
+        FloatingActionButton fab = getActivity().findViewById(R.id.fab);
+
         textureView.setSurfaceTextureListener(textureListener);
-        fab = getActivity().findViewById(R.id.fab);
         fab.show();
         fab.setOnClickListener(null);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -107,18 +110,15 @@ public class CameraFragment extends Fragment{
         public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int i, int i1) {
 
         }
-
         @Override
         public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
             return false;
         }
-
         @Override
         public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
 
         }
     };
-
     private final CameraDevice.StateCallback stateCallback = new CameraDevice.StateCallback() {
         @Override
         public void onOpened(@NonNull CameraDevice camera) {
@@ -140,6 +140,7 @@ public class CameraFragment extends Fragment{
         }
     };
 
+    //Background Thread para Camera
     protected void startBackgroundThread(){
         mBackgroundThread = new HandlerThread("Camera Background");
         mBackgroundThread.start();
@@ -164,17 +165,16 @@ public class CameraFragment extends Fragment{
             Log.e(TAG, "CameraDevice is null");
             return;
         }
-        CameraManager manager = (CameraManager) getActivity().getSystemService(Context.CAMERA_SERVICE);
         try{
+            CameraManager manager = (CameraManager) getActivity().getSystemService(Context.CAMERA_SERVICE);
             CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraDevice.getId());
-            Size[] jpegSizes = null;
-            if(characteristics != null){
-                jpegSizes = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP).getOutputSizes((ImageFormat.JPEG));
-            }
+            Size[] jpegSizes;
+            jpegSizes = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP).getOutputSizes((ImageFormat.JPEG));
 
             int width = 640;
             int height = 480;
             if(jpegSizes != null && 0 < jpegSizes.length){
+                Log.d(TAG, "jpegSizes");
                 width = jpegSizes[0].getWidth();
                 height = jpegSizes[0].getHeight();
             }
@@ -190,18 +190,16 @@ public class CameraFragment extends Fragment{
             final long imgTime = Calendar.getInstance().getTimeInMillis();
             int rotation = getActivity().getWindowManager().getDefaultDisplay().getRotation();
             captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, ORIENTATIONS.get(rotation));
-            final File file = new File(Environment.getExternalStorageDirectory()+"/PID_"+ imgTime+ ".png");
+            final File file = new File(Environment.getExternalStorageDirectory()+"/BoxBox/PID_"+ imgTime+ ".jpg");
             ImageReader.OnImageAvailableListener readerListener = new ImageReader.OnImageAvailableListener() {
                 @Override
                 public void onImageAvailable(ImageReader reader) {
                     Image image = null;
                     try {
                         image = reader.acquireLatestImage();
-
                         ByteBuffer buffer = image.getPlanes()[0].getBuffer();
                         byte[] bytes = new byte[buffer.capacity()];
                         buffer.get(bytes);
-
                         save(bytes);
                     } catch (FileNotFoundException e) {
                         e.printStackTrace();
@@ -214,6 +212,7 @@ public class CameraFragment extends Fragment{
                     }
                 }
 
+                // Metodo para escrever os bytes na foto e salva-la
                 private void save(byte[] bytes) throws IOException {
                     OutputStream output = null;
                     try {
@@ -225,9 +224,18 @@ public class CameraFragment extends Fragment{
                             output.close();
                         }
                     }
+                    // Informações para que a foto apareça na galeria
+                    ContentValues values = new ContentValues();
+                    values.put(MediaStore.Images.Media.TITLE, file.getName());
+                    values.put(MediaStore.Images.Media.DESCRIPTION, "BoxBox Image Detection");
+                    values.put(MediaStore.Images.Media.DATE_TAKEN, imgTime);
+                    values.put(MediaStore.Images.Media.BUCKET_ID, file.toString().toLowerCase(Locale.US).hashCode());
+                    values.put(MediaStore.Images.Media.BUCKET_DISPLAY_NAME, file.toString().toLowerCase(Locale.US));
+                    values.put("_data", file.getAbsolutePath());
+                    ContentResolver cr = getActivity().getContentResolver();
+                    cr.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
                 }
             };
-
             reader.setOnImageAvailableListener(readerListener, mBackgroundHandler);
 
             final CameraCaptureSession.CaptureCallback captureListener = new CameraCaptureSession.CaptureCallback() {
@@ -235,9 +243,7 @@ public class CameraFragment extends Fragment{
                 public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
                     super.onCaptureCompleted(session, request, result);
                     Toast.makeText(getActivity(), "Saved!!:" + file, Toast.LENGTH_SHORT).show();
-//                    createCameraPreview();
                     closeCamera();
-                    //TODO Acho que aqui e' um bom lugar para alterar o que ta rolando na imagem.
                     Bundle bundle = new Bundle();
                     bundle.putByteArray("IMAGE",imgBytes);
                     Fragment fragment = new BoxDetectionFragment();
@@ -303,7 +309,7 @@ public class CameraFragment extends Fragment{
         CameraManager manager = (CameraManager) getActivity().getSystemService(Context.CAMERA_SERVICE);
         Log.e(TAG, "is camera open");
         try {
-            cameraId = manager.getCameraIdList()[0];
+            String cameraId = manager.getCameraIdList()[0];
             CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
             StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
             assert map != null;
@@ -361,7 +367,6 @@ public class CameraFragment extends Fragment{
     public void onPause() {
         closeCamera();
         imgBytes = null;
-        file = null;
         stopBackgroundThread();
         super.onPause();
     }
