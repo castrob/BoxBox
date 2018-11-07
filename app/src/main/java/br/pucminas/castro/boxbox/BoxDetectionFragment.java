@@ -93,7 +93,7 @@ public class BoxDetectionFragment extends Fragment{
         //Now using Hough Probabilistic Line Transform.
         // Probabilistic Line Transform.
         Mat linesP = new Mat(); // will hold the results of the detection
-        Imgproc.HoughLinesP(edges, linesP, 1, Math.PI/180, 50,20,10); // runs the actual detection
+        Imgproc.HoughLinesP(edges, linesP, 1, Math.PI/180, 50,50,30); // runs the actual detection
         ArrayList<Linhas> linhas = new ArrayList<Linhas>();
         Linhas linha;
         // Draw the lines
@@ -104,20 +104,23 @@ public class BoxDetectionFragment extends Fragment{
             linhas.add(linha);
         }
         linhasParalelas = findGroups(linhas,0.2);
-        int [] x = new int[linhasParalelas.size()];
-        flag = false;
-        combinationTodasRetas(linhasParalelas.size(),3,x,0,0);
-        // Don't do that at home or work it's for visualization purpose.
-        if(flag == true) {
+        if(linhasParalelas.size() >= 3) {
+            //System.out.println(linhasParalelas.size());
+            int[] x = new int[linhasParalelas.size()];
+            flag = false;
+            combinationTodasRetas(3, 3, x, 0, 0);
+            // Don't do that at home or work it's for visualization purpose.
+        }
             Bitmap resultBitmap = Bitmap.createBitmap(cdstP.cols(), cdstP.rows(), Bitmap.Config.ARGB_8888);
             Utils.matToBitmap(cdstP, resultBitmap);
             imageView.setImageBitmap(resultBitmap);
-        }
+
     }
 
     private void combinationTodasRetas(int n, int r, int x [],int next,int k) {
         int i;
         if(k == r && flag != true) {
+            //System.out.println("x 0 : " + x[0] );
             int size = linhasParalelas.get(x[0]).linhas.size();
             int [] tmp = new int [size];
             combination1(size,3,tmp,0,0,x);
@@ -133,7 +136,8 @@ public class BoxDetectionFragment extends Fragment{
     private void combination1(int n, int r, int x [], int next, int k, int [] vetorRetasParalelas) {
         int i;
         if(k == r && flag != true) {
-            int size = linhasParalelas.get(x[1]).linhas.size();
+            //System.out.println("x 1 : " + x[1] );
+            int size = linhasParalelas.get(vetorRetasParalelas[1]).linhas.size();
             int [] tmp = new int [size];
             combination2(size,3,tmp,0,0,vetorRetasParalelas,x);
         }else{
@@ -148,7 +152,8 @@ public class BoxDetectionFragment extends Fragment{
     private void combination2(int n , int r, int x [] , int next, int k, int [] vetorRetasParalelas, int [] primeirasRetas) {
         int i;
         if(k == r && flag != true) {
-            int size = linhasParalelas.get(x[2]).linhas.size();
+            //System.out.println("x 2 : " + x[2] );
+            int size = linhasParalelas.get(vetorRetasParalelas[2]).linhas.size();
             int [] tmp = new int [size];
             combination3(size,3,tmp,0,0,vetorRetasParalelas,primeirasRetas,x);
         }else{
@@ -175,7 +180,7 @@ public class BoxDetectionFragment extends Fragment{
 
     private void findBoxes(int [] vetorRetasParalelas, int [] primeirasRetas, int [] segundasRetas, int [] terceirasRetas) {
         Point um,dois,tmp1,tmp2;
-        int distancia = 10;
+        int distancia = 20; // Para testar mudar estes valores.
         int contador = 0;
         for(int i = 0; i < 3; i++) {
             um = linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).primeiro;
@@ -212,9 +217,9 @@ public class BoxDetectionFragment extends Fragment{
                 }
             }
         }
-
-        if(contador == 10) {
-            flag = true;
+        System.out.println("Contador : " + contador);
+        if(contador == 10) { // Para testar, mudar esses valores.
+            flag = true; // Para testar comente isso <<.
             for(int i = 0; i < 3; i++){
                 Imgproc.line(cdstP, linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).primeiro, linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
             }
@@ -240,7 +245,7 @@ public class BoxDetectionFragment extends Fragment{
         for(int i = 0; i < linhas.size(); i++){
             linhasParalelas = new LinhasParalelas();
             linhasParalelas.linhas.add(linhas.get(i));
-            System.out.println("A Teste: " + linhas.get(i).a);
+            //System.out.println("A Teste: " + linhas.get(i).a);
             linhas.remove(i);
             i--;
             for(int j = i+1;  j < linhas.size();j++){
@@ -254,10 +259,10 @@ public class BoxDetectionFragment extends Fragment{
             }
 
             if(linhasParalelas.linhas.size() >= 3) {
-                System.out.println("Passo aqui");
+                //System.out.println("Passo aqui");
                 todasLinhasParalelas.add(linhasParalelas);
                 for(int p = 0; p < linhasParalelas.linhas.size();p++){
-                    System.out.println("Valor: " + p + ": " + linhasParalelas.linhas.get(p).a);
+                    //System.out.println("Valor: " + p + ": " + linhasParalelas.linhas.get(p).a);
                 }
             }
         }

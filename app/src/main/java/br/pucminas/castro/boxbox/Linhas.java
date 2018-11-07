@@ -12,8 +12,9 @@ public class Linhas {
     public Linhas(Point primeiro, Point ultimo) {
         this.primeiro = primeiro;
         this.ultimo = ultimo;
+        //System.out.println("Primeiro ponto: = (" + this.primeiro.x + "," + this.primeiro.y + ")" + " ultimo ponto: = (" + this.ultimo.x + "," + this.ultimo.y + ")");
         this.a = calcularA();
-        System.out.println("A = " + this.a);
+        //System.out.println("A = " + this.a);
         this.b = calcularB();
     }
 
