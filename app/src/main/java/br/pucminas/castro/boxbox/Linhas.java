@@ -7,7 +7,7 @@ public class Linhas {
     public Point primeiro;
     public Point ultimo;
     public double a;
-    public double b;
+    public int tipoReta; //0 = angulo positivo, 1 = angulo negativo , 2 = indo pro infinito.
 
     public Linhas(Point primeiro, Point ultimo) {
         this.primeiro = primeiro;
@@ -15,7 +15,7 @@ public class Linhas {
         //System.out.println("Primeiro ponto: = (" + this.primeiro.x + "," + this.primeiro.y + ")" + " ultimo ponto: = (" + this.ultimo.x + "," + this.ultimo.y + ")");
         this.a = calcularA();
         //System.out.println("A = " + this.a);
-        this.b = calcularB();
+        this.tipoReta = calcularTipoReta();
     }
 
     private double calcularA() {
@@ -24,7 +24,15 @@ public class Linhas {
         return deltaY/deltaX;
     }
 
-    private double calcularB() {
-        return primeiro.y - (a * primeiro.x);
+    private int calcularTipoReta() {
+        int resp;
+        if(this.a >= 5 || this.a <= -5) {
+            resp = 2;
+        }else if(this.a >= 0 && this.a < 5) {
+            resp = 0;
+        }else{
+            resp = 1;
+        }
+        return resp;
     }
 }

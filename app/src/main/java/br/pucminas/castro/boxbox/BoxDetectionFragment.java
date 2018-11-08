@@ -26,6 +26,7 @@ import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.Point;
 import org.opencv.core.Scalar;
+import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
 import java.util.ArrayList;
@@ -85,15 +86,22 @@ public class BoxDetectionFragment extends Fragment{
         Utils.bitmapToMat(bitmap, rgba);
         Mat edges = new Mat(rgba.size(), CvType.CV_8UC1);
         Imgproc.cvtColor(rgba, edges, Imgproc.COLOR_RGB2GRAY, 4);
+        //GaussianBlur (3,3)
+        Imgproc.GaussianBlur(edges,edges,new Size(3,3),0);
         //Method canny to find edges.
         Imgproc.Canny(edges, edges, cannySoft, cannyStrong,3,false);
         Toast.makeText(getActivity(), "Running Canny with Values (" + cannySoft + ", " + cannyStrong + ") ", Toast.LENGTH_SHORT).show();
+        //Dilate
+        Imgproc.dilate(edges, edges, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(4, 4)));
+        Imgproc.erode(edges, edges, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3)));
         cdstP = new Mat();
         Imgproc.cvtColor(edges, cdstP, Imgproc.COLOR_GRAY2BGR);
+
+
         //Now using Hough Probabilistic Line Transform.
         // Probabilistic Line Transform.
         Mat linesP = new Mat(); // will hold the results of the detection
-        Imgproc.HoughLinesP(edges, linesP, 1, Math.PI/180, 50,50,30); // runs the actual detection
+        Imgproc.HoughLinesP(edges, linesP, 1, Math.PI/180, 60,30,40); // runs the actual detection
         ArrayList<Linhas> linhas = new ArrayList<Linhas>();
         Linhas linha;
         // Draw the lines
@@ -105,11 +113,13 @@ public class BoxDetectionFragment extends Fragment{
         }
         linhasParalelas = findGroups(linhas,0.2);
         if(linhasParalelas.size() >= 3) {
-            //System.out.println(linhasParalelas.size());
+            System.out.println(linhasParalelas.size());
             int[] x = new int[linhasParalelas.size()];
             flag = false;
+            /*for(int i = 0; i < linhasParalelas.size(); i++){
+                Imgproc.line(cdstP, linhasParalelas.get(i).linhas.get(0).primeiro, linhasParalelas.get(i).linhas.get(0).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
+            }*/
             combinationTodasRetas(3, 3, x, 0, 0);
-            // Don't do that at home or work it's for visualization purpose.
         }
             Bitmap resultBitmap = Bitmap.createBitmap(cdstP.cols(), cdstP.rows(), Bitmap.Config.ARGB_8888);
             Utils.matToBitmap(cdstP, resultBitmap);
@@ -178,7 +188,7 @@ public class BoxDetectionFragment extends Fragment{
         }
     }
 
-    private void findBoxes(int [] vetorRetasParalelas, int [] primeirasRetas, int [] segundasRetas, int [] terceirasRetas) {
+    /*private void findBoxes(int [] vetorRetasParalelas, int [] primeirasRetas, int [] segundasRetas, int [] terceirasRetas) {
         Point um,dois,tmp1,tmp2;
         int distancia = 20; // Para testar mudar estes valores.
         int contador = 0;
@@ -230,7 +240,79 @@ public class BoxDetectionFragment extends Fragment{
                 Imgproc.line(cdstP, linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).primeiro, linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
             }
         }
+    }*/
+
+    private void findBoxes(int [] vetorRetasParalelas, int [] primeirasRetas, int [] segundasRetas, int [] terceirasRetas) {
+        ArrayList<Point> pontos = new ArrayList<Point>();
+        //ArrayList<Boolean> passoTodos = new ArrayList<Boolean>();
+        ArrayList<Integer> passoTodos = new ArrayList<Integer>();
+        //boolean tmp = false;
+        int tmp = 0;
+        for(int i = 0; i < 3; i++){
+            if(!acharPontos(linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).primeiro,pontos,passoTodos)) {
+                pontos.add(linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).primeiro);
+                passoTodos.add(tmp);
+
+            }
+            if(!acharPontos(linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).ultimo,pontos,passoTodos)) {
+                pontos.add(linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).ultimo);
+                passoTodos.add(tmp);
+            }
+            if(!acharPontos(linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]).primeiro,pontos,passoTodos)) {
+                pontos.add(linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]).primeiro);
+                passoTodos.add(tmp);
+            }
+            if(!acharPontos(linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]).ultimo,pontos,passoTodos)) {
+                pontos.add(linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]).ultimo);
+                passoTodos.add(tmp);
+            }
+            if(!acharPontos(linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).primeiro,pontos,passoTodos)) {
+                pontos.add(linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).primeiro);
+                passoTodos.add(tmp);
+            }
+            if(!acharPontos(linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).ultimo,pontos,passoTodos)) {
+                pontos.add(linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).ultimo);
+                passoTodos.add(tmp);
+            }
+        }
+        //System.out.println("Contador : " + pontos.size() + "True :" + passoTodos.size());
+        if(pontos.size() == 7 && allTrue(passoTodos)) { // Para testar, mudar esses valores.
+            flag = true; // Para testar comente isso <<.
+            for(int i = 0; i < 3; i++){
+                Imgproc.line(cdstP, linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).primeiro, linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
+            }
+            for(int i = 0; i < 3; i++){
+                Imgproc.line(cdstP, linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]).primeiro, linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
+            }
+            for(int i = 0; i < 3; i++){
+                Imgproc.line(cdstP, linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).primeiro, linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
+            }
+        }
     }
+
+    private boolean allTrue(ArrayList<Integer> passoTodos) {
+        for(int i = 0; i < passoTodos.size();i++) {
+            if(passoTodos.get(i) < 1) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean acharPontos(Point ponto, ArrayList<Point> points, ArrayList<Integer> tmp) {
+        boolean resp = false;
+        int distancia = 20;
+        int tmp1;
+        for(int i = 0; i < points.size();i++) {
+            if(distanciaEuclidiana(points.get(i),ponto) <= distancia) {
+                resp = true;
+                tmp1 = tmp.get(i);
+                tmp.set(i,tmp1+1);
+            }
+        }
+        return resp;
+    }
+
 
     private double distanciaEuclidiana(Point um, Point dois) {
 
@@ -249,9 +331,14 @@ public class BoxDetectionFragment extends Fragment{
             linhas.remove(i);
             i--;
             for(int j = i+1;  j < linhas.size();j++){
-                double coeficienteAngular1 = linhasParalelas.linhas.get(0).a;
+                /*double coeficienteAngular1 = linhasParalelas.linhas.get(0).a;
                 double coeficienteAngular2 = linhas.get(j).a;
                 if((coeficienteAngular1 - diferencaCoeficiente) <= coeficienteAngular2 && (coeficienteAngular1 + diferencaCoeficiente) >= coeficienteAngular2 ) {
+                    linhasParalelas.linhas.add(linhas.get(j));
+                    linhas.remove(j);
+                    j--;
+                }*/
+                if(linhasParalelas.linhas.get(0).tipoReta == linhas.get(j).tipoReta) {
                     linhasParalelas.linhas.add(linhas.get(j));
                     linhas.remove(j);
                     j--;
