@@ -84,24 +84,31 @@ public class BoxDetectionFragment extends Fragment{
 
         Mat rgba = new Mat();
         Utils.bitmapToMat(bitmap, rgba);
-        Mat edges = new Mat(rgba.size(), CvType.CV_8UC1);
+        Mat edges = new Mat();//(rgba.size(), CvType.CV_8UC3);
+        //bilateralFilter.
+        Imgproc.cvtColor(rgba,rgba,Imgproc.COLOR_BGRA2BGR);
+        Imgproc.bilateralFilter(rgba,edges,6,75,75);
         Imgproc.cvtColor(rgba, edges, Imgproc.COLOR_RGB2GRAY, 4);
         //GaussianBlur (3,3)
-        Imgproc.GaussianBlur(edges,edges,new Size(3,3),0);
+        //Imgproc.GaussianBlur(edges,edges,new Size(3,3),0);
+
         //Method canny to find edges.
         Imgproc.Canny(edges, edges, cannySoft, cannyStrong,3,false);
         Toast.makeText(getActivity(), "Running Canny with Values (" + cannySoft + ", " + cannyStrong + ") ", Toast.LENGTH_SHORT).show();
+
         //Dilate
-        Imgproc.dilate(edges, edges, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(4, 4)));
-        Imgproc.erode(edges, edges, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3)));
+        Imgproc.dilate(edges, edges, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(2, 2)));
+        //Imgproc.erode(edges, edges, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(2, 2)));
+
+        //Copy the image for hough transform
         cdstP = new Mat();
         Imgproc.cvtColor(edges, cdstP, Imgproc.COLOR_GRAY2BGR);
 
 
-        //Now using Hough Probabilistic Line Transform.
+        // Now using Hough Probabilistic Line Transform.
         // Probabilistic Line Transform.
         Mat linesP = new Mat(); // will hold the results of the detection
-        Imgproc.HoughLinesP(edges, linesP, 1, Math.PI/180, 60,30,40); // runs the actual detection
+        Imgproc.HoughLinesP(edges, linesP, 1, Math.PI/180, 50,30,20); // runs the actual detection
         ArrayList<Linhas> linhas = new ArrayList<Linhas>();
         Linhas linha;
         // Draw the lines
@@ -111,6 +118,7 @@ public class BoxDetectionFragment extends Fragment{
             linha = new Linhas(new Point(l[0], l[1]), new Point(l[2], l[3]));
             linhas.add(linha);
         }
+        System.out.println("Size total:" + linhas.size() );
         linhasParalelas = findGroups(linhas,0.2);
         if(linhasParalelas.size() >= 3) {
             System.out.println(linhasParalelas.size());
@@ -121,10 +129,15 @@ public class BoxDetectionFragment extends Fragment{
             }*/
             combinationTodasRetas(3, 3, x, 0, 0);
         }
-            Bitmap resultBitmap = Bitmap.createBitmap(cdstP.cols(), cdstP.rows(), Bitmap.Config.ARGB_8888);
-            Utils.matToBitmap(cdstP, resultBitmap);
-            imageView.setImageBitmap(resultBitmap);
 
+        /*for(int i = 0; i < linhasParalelas.size();i++){
+            for(int j = 0; j < linhasParalelas.get(i).linhas.size();j++){
+                Imgproc.line(cdstP,linhasParalelas.get(i).linhas.get(j).primeiro, linhasParalelas.get(i).linhas.get(j).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
+            }
+        }*/
+        Bitmap resultBitmap = Bitmap.createBitmap(cdstP.cols(), cdstP.rows(), Bitmap.Config.ARGB_8888);
+        Utils.matToBitmap(cdstP, resultBitmap);
+        imageView.setImageBitmap(resultBitmap);
     }
 
     private void combinationTodasRetas(int n, int r, int x [],int next,int k) {
@@ -338,10 +351,16 @@ public class BoxDetectionFragment extends Fragment{
                     linhas.remove(j);
                     j--;
                 }*/
-                if(linhasParalelas.linhas.get(0).tipoReta == linhas.get(j).tipoReta) {
-                    linhasParalelas.linhas.add(linhas.get(j));
-                    linhas.remove(j);
-                    j--;
+                if(linhasParalelas.linhas.get(0).tipoReta == linhas.get(j).tipoReta && tamanhoIgual(linhasParalelas.linhas.get(0),linhas.get(j))) {
+                    if(saoIguais(linhasParalelas.linhas.get(0),linhas.get(j))) {
+                        linhas.remove(j);
+                        j--;
+                    }else{
+                        linhasParalelas.linhas.add(linhas.get(j));
+                        linhas.remove(j);
+                        j--;
+                    }
+
                 }
             }
 
@@ -349,11 +368,31 @@ public class BoxDetectionFragment extends Fragment{
                 //System.out.println("Passo aqui");
                 todasLinhasParalelas.add(linhasParalelas);
                 for(int p = 0; p < linhasParalelas.linhas.size();p++){
-                    //System.out.println("Valor: " + p + ": " + linhasParalelas.linhas.get(p).a);
+                    System.out.println("Valor: " + p + ": " + linhasParalelas.linhas.get(p).a);
                 }
             }
         }
         return todasLinhasParalelas;
+    }
+
+    private boolean saoIguais(Linhas linhas1, Linhas linhas2) {
+        double tmp1 = distanciaEuclidiana(linhas1.primeiro,linhas2.primeiro);
+        double tmp2 = distanciaEuclidiana(linhas1.ultimo,linhas2.ultimo);
+        if(tmp1 <= 15 && tmp2 <= 15) {
+            return true;
+        }
+        return false;
+    }
+
+    private boolean tamanhoIgual(Linhas linhas1, Linhas linhas2) {
+
+        double tmp1 = distanciaEuclidiana(linhas1.primeiro,linhas1.ultimo);
+        double tmp2 = distanciaEuclidiana(linhas2.primeiro,linhas2.ultimo);
+        if(tmp2 <= tmp1+5 || tmp1-5 >= tmp2) {
+            return true;
+        }else{
+            return false;
+        }
     }
 
 
