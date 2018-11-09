@@ -97,8 +97,8 @@ public class BoxDetectionFragment extends Fragment{
         Toast.makeText(getActivity(), "Running Canny with Values (" + cannySoft + ", " + cannyStrong + ") ", Toast.LENGTH_SHORT).show();
 
         //Dilate
-        Imgproc.dilate(edges, edges, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(2, 2)));
-        //Imgproc.erode(edges, edges, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(2, 2)));
+        Imgproc.dilate(edges, edges, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(4, 4)));
+        Imgproc.erode(edges, edges, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(2, 2)));
 
         //Copy the image for hough transform
         cdstP = new Mat();
@@ -108,7 +108,7 @@ public class BoxDetectionFragment extends Fragment{
         // Now using Hough Probabilistic Line Transform.
         // Probabilistic Line Transform.
         Mat linesP = new Mat(); // will hold the results of the detection
-        Imgproc.HoughLinesP(edges, linesP, 1, Math.PI/180, 50,30,20); // runs the actual detection
+        Imgproc.HoughLinesP(edges, linesP, 1, Math.PI/180, 50,40,10); // runs the actual detection
         ArrayList<Linhas> linhas = new ArrayList<Linhas>();
         Linhas linha;
         // Draw the lines
@@ -127,14 +127,16 @@ public class BoxDetectionFragment extends Fragment{
             /*for(int i = 0; i < linhasParalelas.size(); i++){
                 Imgproc.line(cdstP, linhasParalelas.get(i).linhas.get(0).primeiro, linhasParalelas.get(i).linhas.get(0).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
             }*/
-            combinationTodasRetas(3, 3, x, 0, 0);
+            //combinationTodasRetas(3, 3, x, 0, 0);
         }
-
-        /*for(int i = 0; i < linhasParalelas.size();i++){
+        int cont = 0;
+        for(int i = 0; i < linhasParalelas.size();i++){
             for(int j = 0; j < linhasParalelas.get(i).linhas.size();j++){
-                Imgproc.line(cdstP,linhasParalelas.get(i).linhas.get(j).primeiro, linhasParalelas.get(i).linhas.get(j).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
+                //Imgproc.line(cdstP,linhasParalelas.get(i).linhas.get(j).primeiro, linhasParalelas.get(i).linhas.get(j).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
+                cont++;
             }
-        }*/
+        }
+        System.out.println("Deixou: " + cont);
         Bitmap resultBitmap = Bitmap.createBitmap(cdstP.cols(), cdstP.rows(), Bitmap.Config.ARGB_8888);
         Utils.matToBitmap(cdstP, resultBitmap);
         imageView.setImageBitmap(resultBitmap);
@@ -336,7 +338,7 @@ public class BoxDetectionFragment extends Fragment{
 
         ArrayList<LinhasParalelas> todasLinhasParalelas = new ArrayList<LinhasParalelas>();
         LinhasParalelas linhasParalelas;
-
+        int cont = 0;
         for(int i = 0; i < linhas.size(); i++){
             linhasParalelas = new LinhasParalelas();
             linhasParalelas.linhas.add(linhas.get(i));
@@ -352,33 +354,56 @@ public class BoxDetectionFragment extends Fragment{
                     j--;
                 }*/
                 if(linhasParalelas.linhas.get(0).tipoReta == linhas.get(j).tipoReta && tamanhoIgual(linhasParalelas.linhas.get(0),linhas.get(j))) {
-                    if(saoIguais(linhasParalelas.linhas.get(0),linhas.get(j))) {
+                    //cont++;
+                    //System.out.println("Entro aqui");
+                    /*if (saoIguais(linhasParalelas.linhas.get(0), linhas.get(j))) {
+                        //System.out.println("Entro aqui1");
                         linhas.remove(j);
                         j--;
-                    }else{
-                        linhasParalelas.linhas.add(linhas.get(j));
-                        linhas.remove(j);
-                        j--;
-                    }
+                    } else {*/
+                        //System.out.println("Entro aqui2");
+                    linhasParalelas.linhas.add(linhas.get(j));
+                    linhas.remove(j);
+                    j--;
+                    //}
 
                 }
             }
-
+            for(int j = 0; j < linhasParalelas.linhas.size(); j++) {
+                Linhas linha1 = linhasParalelas.linhas.get(j);
+                for(int z = j+1; z < linhasParalelas.linhas.size();z++ ){
+                    Linhas linha2 = linhasParalelas.linhas.get(z);
+                    if (saoIguais(linha1, linha2)) {
+                        //System.out.println("Entro aqui1");
+                        //linhasParalelas.linhas.remove(z);
+                        //z--;
+                    }
+                }
+            }
             if(linhasParalelas.linhas.size() >= 3) {
                 //System.out.println("Passo aqui");
                 todasLinhasParalelas.add(linhasParalelas);
                 for(int p = 0; p < linhasParalelas.linhas.size();p++){
-                    System.out.println("Valor: " + p + ": " + linhasParalelas.linhas.get(p).a);
+                    //System.out.println("Valor: " + p + ": " + linhasParalelas.linhas.get(p).a);
+                    Imgproc.line(cdstP,linhasParalelas.linhas.get(p).primeiro, linhasParalelas.linhas.get(p).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
                 }
             }
         }
+        System.out.println("Contador de retas: " + cont );
         return todasLinhasParalelas;
     }
 
     private boolean saoIguais(Linhas linhas1, Linhas linhas2) {
         double tmp1 = distanciaEuclidiana(linhas1.primeiro,linhas2.primeiro);
         double tmp2 = distanciaEuclidiana(linhas1.ultimo,linhas2.ultimo);
-        if(tmp1 <= 15 && tmp2 <= 15) {
+        double tmp3 = distanciaEuclidiana(linhas1.primeiro,linhas2.ultimo);
+        double tmp4 = distanciaEuclidiana(linhas1.ultimo,linhas2.primeiro);
+        System.out.println("Distancia tmp1: " + tmp1 + " Distancia tmp2: " + tmp2 + " Distancia tmp3: " + tmp3 + " Distancia tmp4: " + tmp4);
+        if((tmp1 <= 20 && tmp2 <= 20) || (tmp3 <= 20 && tmp4 <= 20)) {
+            //System.out.println("Distancia tmp1: " + tmp1 + " Distancia tmp2: " + tmp2 + " Distancia tmp3: " + tmp3 + " Distancia tmp4: " + tmp4);
+            //Imgproc.line(cdstP, linhas1.primeiro, linhas1.ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
+            //Imgproc.line(cdstP, linhas2.primeiro, linhas2.ultimo, new Scalar(0, 255, 0), 1, Imgproc.LINE_AA, 0);
+            System.out.println("Excluiu");
             return true;
         }
         return false;
@@ -388,7 +413,7 @@ public class BoxDetectionFragment extends Fragment{
 
         double tmp1 = distanciaEuclidiana(linhas1.primeiro,linhas1.ultimo);
         double tmp2 = distanciaEuclidiana(linhas2.primeiro,linhas2.ultimo);
-        if(tmp2 <= tmp1+5 || tmp1-5 >= tmp2) {
+        if(tmp2 <= tmp1+15 || tmp1-15 >= tmp2) {
             return true;
         }else{
             return false;
