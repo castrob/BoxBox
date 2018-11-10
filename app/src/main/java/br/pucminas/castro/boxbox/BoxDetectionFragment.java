@@ -97,8 +97,8 @@ public class BoxDetectionFragment extends Fragment{
         Toast.makeText(getActivity(), "Running Canny with Values (" + cannySoft + ", " + cannyStrong + ") ", Toast.LENGTH_SHORT).show();
 
         //Dilate
-        Imgproc.dilate(edges, edges, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(4, 4)));
-        Imgproc.erode(edges, edges, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(2, 2)));
+        Imgproc.dilate(edges, edges, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(2, 2)));
+        //Imgproc.erode(edges, edges, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3)));
 
         //Copy the image for hough transform
         cdstP = new Mat();
@@ -127,7 +127,7 @@ public class BoxDetectionFragment extends Fragment{
             /*for(int i = 0; i < linhasParalelas.size(); i++){
                 Imgproc.line(cdstP, linhasParalelas.get(i).linhas.get(0).primeiro, linhasParalelas.get(i).linhas.get(0).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
             }*/
-            //combinationTodasRetas(3, 3, x, 0, 0);
+            combinationTodasRetas(3, 3, x, 0, 0);
         }
         int cont = 0;
         for(int i = 0; i < linhasParalelas.size();i++){
@@ -202,60 +202,6 @@ public class BoxDetectionFragment extends Fragment{
             }
         }
     }
-
-    /*private void findBoxes(int [] vetorRetasParalelas, int [] primeirasRetas, int [] segundasRetas, int [] terceirasRetas) {
-        Point um,dois,tmp1,tmp2;
-        int distancia = 20; // Para testar mudar estes valores.
-        int contador = 0;
-        for(int i = 0; i < 3; i++) {
-            um = linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).primeiro;
-            dois = linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).ultimo;
-            for(int j = 0; j < 3; j++) {
-                tmp1 = linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[j]).primeiro;
-                tmp2 = linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[j]).ultimo;
-                if(distanciaEuclidiana(um,tmp1) <= distancia) {
-                    contador++;
-                }
-                if(distanciaEuclidiana(um,tmp2) <= distancia) {
-                    contador++;
-                }if(distanciaEuclidiana(dois,tmp1) <= distancia) {
-                    contador++;
-                }
-                if(distanciaEuclidiana(dois,tmp2) <= distancia) {
-                    contador++;
-                }
-            }
-            for(int j = 0; j < 3; j++) {
-                tmp1 = linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[j]).primeiro;
-                tmp2 = linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[j]).ultimo;
-                if(distanciaEuclidiana(um,tmp1) <= distancia) {
-                    contador++;
-                }
-                if(distanciaEuclidiana(um,tmp2) <= distancia) {
-                    contador++;
-                }
-                if(distanciaEuclidiana(dois,tmp1) <= distancia) {
-                    contador++;
-                }
-                if(distanciaEuclidiana(dois,tmp2) <= distancia) {
-                    contador++;
-                }
-            }
-        }
-        System.out.println("Contador : " + contador);
-        if(contador == 10) { // Para testar, mudar esses valores.
-            flag = true; // Para testar comente isso <<.
-            for(int i = 0; i < 3; i++){
-                Imgproc.line(cdstP, linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).primeiro, linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
-            }
-            for(int i = 0; i < 3; i++){
-                Imgproc.line(cdstP, linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]).primeiro, linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
-            }
-            for(int i = 0; i < 3; i++){
-                Imgproc.line(cdstP, linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).primeiro, linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
-            }
-        }
-    }*/
 
     private void findBoxes(int [] vetorRetasParalelas, int [] primeirasRetas, int [] segundasRetas, int [] terceirasRetas) {
         ArrayList<Point> pontos = new ArrayList<Point>();
@@ -353,7 +299,7 @@ public class BoxDetectionFragment extends Fragment{
                     linhas.remove(j);
                     j--;
                 }*/
-                if(linhasParalelas.linhas.get(0).tipoReta == linhas.get(j).tipoReta && tamanhoIgual(linhasParalelas.linhas.get(0),linhas.get(j))) {
+                if(linhasParalelas.linhas.get(0).tipoReta == linhas.get(j).tipoReta) {
                     //cont++;
                     //System.out.println("Entro aqui");
                     /*if (saoIguais(linhasParalelas.linhas.get(0), linhas.get(j))) {
@@ -375,19 +321,25 @@ public class BoxDetectionFragment extends Fragment{
                     Linhas linha2 = linhasParalelas.linhas.get(z);
                     if (saoIguais(linha1, linha2)) {
                         //System.out.println("Entro aqui1");
-                        //linhasParalelas.linhas.remove(z);
-                        //z--;
+                        linhasParalelas.linhas.remove(z);
+                        z--;
                     }
                 }
             }
             if(linhasParalelas.linhas.size() >= 3) {
                 //System.out.println("Passo aqui");
                 todasLinhasParalelas.add(linhasParalelas);
+                System.out.println("Valor dentro: "  + ": " + linhasParalelas.linhas.get(0).tipoReta + " a: " + linhasParalelas.linhas.get(0).a );
                 for(int p = 0; p < linhasParalelas.linhas.size();p++){
-                    //System.out.println("Valor: " + p + ": " + linhasParalelas.linhas.get(p).a);
-                    Imgproc.line(cdstP,linhasParalelas.linhas.get(p).primeiro, linhasParalelas.linhas.get(p).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
+
+                    //Imgproc.line(cdstP,linhasParalelas.linhas.get(p).primeiro, linhasParalelas.linhas.get(p).ultimo, new Scalar(0, 255, 0), 1, Imgproc.LINE_AA, 0);
                 }
-            }
+            }/*else{
+                for(int p = 0; p < linhasParalelas.linhas.size();p++){
+                    System.out.println("Valor fora: "  + ": " + linhasParalelas.linhas.get(0).tipoReta + " a: " + linhasParalelas.linhas.get(0).a);
+                    //Imgproc.line(cdstP,linhasParalelas.linhas.get(p).primeiro, linhasParalelas.linhas.get(p).ultimo, new Scalar(0, 255, 0), 1, Imgproc.LINE_AA, 0);
+                }
+            }*/
         }
         System.out.println("Contador de retas: " + cont );
         return todasLinhasParalelas;
@@ -398,12 +350,12 @@ public class BoxDetectionFragment extends Fragment{
         double tmp2 = distanciaEuclidiana(linhas1.ultimo,linhas2.ultimo);
         double tmp3 = distanciaEuclidiana(linhas1.primeiro,linhas2.ultimo);
         double tmp4 = distanciaEuclidiana(linhas1.ultimo,linhas2.primeiro);
-        System.out.println("Distancia tmp1: " + tmp1 + " Distancia tmp2: " + tmp2 + " Distancia tmp3: " + tmp3 + " Distancia tmp4: " + tmp4);
-        if((tmp1 <= 20 && tmp2 <= 20) || (tmp3 <= 20 && tmp4 <= 20)) {
+        //System.out.println("Distancia tmp1: " + tmp1 + " Distancia tmp2: " + tmp2 + " Distancia tmp3: " + tmp3 + " Distancia tmp4: " + tmp4);
+        if((tmp1 <= 15 && tmp2 <= 15) || (tmp3 <= 15 && tmp4 <= 15)) {
             //System.out.println("Distancia tmp1: " + tmp1 + " Distancia tmp2: " + tmp2 + " Distancia tmp3: " + tmp3 + " Distancia tmp4: " + tmp4);
             //Imgproc.line(cdstP, linhas1.primeiro, linhas1.ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
             //Imgproc.line(cdstP, linhas2.primeiro, linhas2.ultimo, new Scalar(0, 255, 0), 1, Imgproc.LINE_AA, 0);
-            System.out.println("Excluiu");
+            //System.out.println("Excluiu");
             return true;
         }
         return false;
@@ -413,13 +365,68 @@ public class BoxDetectionFragment extends Fragment{
 
         double tmp1 = distanciaEuclidiana(linhas1.primeiro,linhas1.ultimo);
         double tmp2 = distanciaEuclidiana(linhas2.primeiro,linhas2.ultimo);
-        if(tmp2 <= tmp1+15 || tmp1-15 >= tmp2) {
+        if(tmp1+20 >= tmp2 && tmp2 >= tmp1-20) {
+            System.out.println("Dentro Tamanho tmp1: " + tmp1 + " A: " + linhas1.a +  " Tamanho tmp2: " + tmp2 + " A: " + linhas2.a);
             return true;
         }else{
+            System.out.println("Tamanho tmp1: " + tmp1 + " A: " + linhas1.a + " Tamanho tmp2: " + tmp2 + " A: " + linhas2.a);
             return false;
         }
     }
 
+    /*private void findBoxes(int [] vetorRetasParalelas, int [] primeirasRetas, int [] segundasRetas, int [] terceirasRetas) {
+        Point um,dois,tmp1,tmp2;
+        int distancia = 20; // Para testar mudar estes valores.
+        int contador = 0;
+        for(int i = 0; i < 3; i++) {
+            um = linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).primeiro;
+            dois = linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).ultimo;
+            for(int j = 0; j < 3; j++) {
+                tmp1 = linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[j]).primeiro;
+                tmp2 = linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[j]).ultimo;
+                if(distanciaEuclidiana(um,tmp1) <= distancia) {
+                    contador++;
+                }
+                if(distanciaEuclidiana(um,tmp2) <= distancia) {
+                    contador++;
+                }if(distanciaEuclidiana(dois,tmp1) <= distancia) {
+                    contador++;
+                }
+                if(distanciaEuclidiana(dois,tmp2) <= distancia) {
+                    contador++;
+                }
+            }
+            for(int j = 0; j < 3; j++) {
+                tmp1 = linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[j]).primeiro;
+                tmp2 = linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[j]).ultimo;
+                if(distanciaEuclidiana(um,tmp1) <= distancia) {
+                    contador++;
+                }
+                if(distanciaEuclidiana(um,tmp2) <= distancia) {
+                    contador++;
+                }
+                if(distanciaEuclidiana(dois,tmp1) <= distancia) {
+                    contador++;
+                }
+                if(distanciaEuclidiana(dois,tmp2) <= distancia) {
+                    contador++;
+                }
+            }
+        }
+        System.out.println("Contador : " + contador);
+        if(contador == 10) { // Para testar, mudar esses valores.
+            flag = true; // Para testar comente isso <<.
+            for(int i = 0; i < 3; i++){
+                Imgproc.line(cdstP, linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).primeiro, linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
+            }
+            for(int i = 0; i < 3; i++){
+                Imgproc.line(cdstP, linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]).primeiro, linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
+            }
+            for(int i = 0; i < 3; i++){
+                Imgproc.line(cdstP, linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).primeiro, linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
+            }
+        }
+    }*/
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {

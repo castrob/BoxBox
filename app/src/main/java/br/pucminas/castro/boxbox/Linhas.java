@@ -26,24 +26,12 @@ public class Linhas {
 
     private int calcularTipoReta() {
         int resp;
-        if(this.a >= 6 || this.a <= -6) {
-            resp = 90;
-        }else if(this.a >= 1.79) {
-            resp = 6180;
-        }else if(this.a >= 0.85) {
-            resp = 4160;
-        }else if(this.a >= 0.37) {
-            resp = 2140;
-        }else if(this.a >= 0) {
-            resp = 19;
-        }else if(this.a <= -1.79) {
-            resp = 6180;
-        }else if(this.a <= -0.85) {
-            resp = 4160;
-        }else if(this.a <= -0.37) {
-            resp = 2140;
+        if(this.a >= 5 || this.a <= -5) {
+            resp = 2;
+        }else if(this.a >= 0 && this.a < 5) {
+            resp = 0;
         }else{
-            resp = 19;
+            resp = 1;
         }
         return resp;
     }
