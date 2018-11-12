@@ -239,6 +239,9 @@ public class BoxDetectionFragment extends Fragment{
         //System.out.println("Contador : " + pontos.size() + "True :" + passoTodos.size());
         if(pontos.size() == 7 && allTrue(passoTodos)) { // Para testar, mudar esses valores.
             flag = true; // Para testar comente isso <<.
+            for(int i = 0; i < 7; i++){
+                System.out.println("Pontos: " + pontos.get(i));
+            }
             for(int i = 0; i < 3; i++){
                 Imgproc.line(cdstP, linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).primeiro, linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
             }
@@ -252,10 +255,26 @@ public class BoxDetectionFragment extends Fragment{
     }
 
     private boolean allTrue(ArrayList<Integer> passoTodos) {
+        int contador = 0;
         for(int i = 0; i < passoTodos.size();i++) {
-            if(passoTodos.get(i) < 1) {
-                return false;
+
+            if(passoTodos.get(i) == 1) {
+                //System.out.println("Numeros: "+passoTodos.get(i));
+                contador++;
             }
+        }
+        if(contador != 3) {
+            return false;
+        }
+        for(int i = 0; i < passoTodos.size();i++) {
+
+            if(passoTodos.get(i) == 2) {
+                //System.out.println("Numeros: "+passoTodos.get(i));
+                contador++;
+            }
+        }
+        if(contador != 7) {
+            return false;
         }
         return true;
     }
@@ -332,7 +351,7 @@ public class BoxDetectionFragment extends Fragment{
                 System.out.println("Valor dentro: "  + ": " + linhasParalelas.linhas.get(0).tipoReta + " a: " + linhasParalelas.linhas.get(0).a );
                 for(int p = 0; p < linhasParalelas.linhas.size();p++){
 
-                    //Imgproc.line(cdstP,linhasParalelas.linhas.get(p).primeiro, linhasParalelas.linhas.get(p).ultimo, new Scalar(0, 255, 0), 1, Imgproc.LINE_AA, 0);
+                    Imgproc.line(cdstP,linhasParalelas.linhas.get(p).primeiro, linhasParalelas.linhas.get(p).ultimo, new Scalar(0, 255, 0), 1, Imgproc.LINE_AA, 0);
                 }
             }/*else{
                 for(int p = 0; p < linhasParalelas.linhas.size();p++){
@@ -351,7 +370,7 @@ public class BoxDetectionFragment extends Fragment{
         double tmp3 = distanciaEuclidiana(linhas1.primeiro,linhas2.ultimo);
         double tmp4 = distanciaEuclidiana(linhas1.ultimo,linhas2.primeiro);
         //System.out.println("Distancia tmp1: " + tmp1 + " Distancia tmp2: " + tmp2 + " Distancia tmp3: " + tmp3 + " Distancia tmp4: " + tmp4);
-        if((tmp1 <= 15 && tmp2 <= 15) || (tmp3 <= 15 && tmp4 <= 15)) {
+        if((tmp1 <= 30 && tmp2 <= 30) || (tmp3 <= 30 && tmp4 <= 30)) {
             //System.out.println("Distancia tmp1: " + tmp1 + " Distancia tmp2: " + tmp2 + " Distancia tmp3: " + tmp3 + " Distancia tmp4: " + tmp4);
             //Imgproc.line(cdstP, linhas1.primeiro, linhas1.ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
             //Imgproc.line(cdstP, linhas2.primeiro, linhas2.ultimo, new Scalar(0, 255, 0), 1, Imgproc.LINE_AA, 0);
