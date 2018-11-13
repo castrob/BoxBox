@@ -26,9 +26,9 @@ public class Linhas {
 
     private int calcularTipoReta() {
         int resp;
-        if(this.a >= 5 || this.a <= -5) {
+        if(this.a >= 4 || this.a <= -4) {
             resp = 2;
-        }else if(this.a >= 0 && this.a < 5) {
+        }else if(this.a >= 0 && this.a < 4) {
             resp = 0;
         }else{
             resp = 1;
