@@ -33,6 +33,7 @@ import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Arrays;
 
 public class BoxDetectionFragment extends Fragment{
     ImageView imageView;
@@ -42,7 +43,8 @@ public class BoxDetectionFragment extends Fragment{
     Mat cdstP;
     double tamanho;
     ArrayList<Linhas> TodasLinhas;
-
+    ArrayList<Caixas> todasCaixas;
+    int timeLimit;
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -83,63 +85,98 @@ public class BoxDetectionFragment extends Fragment{
         }
     }
 
+    /** Metodo para Achar somente as linhas, usando canny e a transformada de houghPrababilistica.
+      *
+      */
     private void detectEdges() {
+
+        //Preparando para usar o canny.
         SharedPreferences sharedPreferences = getActivity().getSharedPreferences("BoxBoxPrefs", Context.MODE_PRIVATE);
         int cannySoft = sharedPreferences.getInt("cannySoft", 50);
         int cannyStrong = sharedPreferences.getInt("cannyStrong", 100);
 
-        Mat rgba = new Mat();
-        Utils.bitmapToMat(bitmap, rgba);
-        Size size = rgba.size();
-        tamanho = ((size.height + size.width) / 100)*6;
-        double tamanho2 = ((size.height + size.width) / 100)*1;
+
+        Mat rgba = new Mat(); //Pegando a imagem.
+        Utils.bitmapToMat(bitmap, rgba); //Passando a imagem para bitmap.
+        Size size = rgba.size(); // Pegando o tamanho da imagem.
+
+        tamanho = ((size.height + size.width) / 100)*3; // Pegando o tamanho limite para os calculos abaixo.
+        double tamanho2 = ((size.height + size.width) / 100)*1; // Pegando o tamanho limite para o tamanho de 2 linhas se encontrarem, para considerar uma linha so.
+
         System.out.println(tamanho);
         Mat edges = new Mat();//(rgba.size(), CvType.CV_8UC3);
-        //bilateralFilter.
-        Imgproc.cvtColor(rgba,rgba,Imgproc.COLOR_BGRA2BGR);
-        Imgproc.bilateralFilter(rgba,edges,6,75,75);
-        Imgproc.cvtColor(rgba, edges, Imgproc.COLOR_RGB2GRAY, 4);
-        //GaussianBlur (3,3)
-        //Imgproc.GaussianBlur(edges,edges,new Size(3,3),0);
 
-        //Method canny to find edges.
-        Imgproc.Canny(edges, edges, cannySoft, cannyStrong,3,false);
-        Toast.makeText(getActivity(), "Running Canny with Values (" + cannySoft + ", " + cannyStrong + ") ", Toast.LENGTH_SHORT).show();
+        Imgproc.cvtColor(rgba,rgba,Imgproc.COLOR_BGRA2BGR); // Passando a imagem para usar o filtro bilateral
+        Imgproc.bilateralFilter(rgba,edges,6,75,75); // Usando filtro bilateral
+        Imgproc.cvtColor(rgba, edges, Imgproc.COLOR_RGB2GRAY, 4); //Passando para tons de cinza.
 
-        //Dilate
-        Imgproc.dilate(edges, edges, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(2, 2)));
+
+        Imgproc.Canny(edges, edges, cannySoft, cannyStrong,3,false);//Aplicando o Canny
+        Toast.makeText(getActivity(), "Running Canny with Values (" + cannySoft + ", " + cannyStrong + ") ", Toast.LENGTH_SHORT).show();//Mostrando os dados do canny.
+
+
+        Imgproc.dilate(edges, edges, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(2, 2)));//Dilatando as retas encontradas.
         //Imgproc.erode(edges, edges, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3)));
 
         //Copy the image for hough transform
-        cdstP = new Mat();
-        cdstP = rgba.clone();
+        cdstP = new Mat(); //Criando uma nova imagem.
+        cdstP = rgba.clone();//Pegando um clone da imagem original.
 
 
         // Now using Hough Probabilistic Line Transform.
         // Probabilistic Line Transform.
         Mat linesP = new Mat(); // will hold the results of the detection
-        Imgproc.HoughLinesP(edges, linesP, 1, Math.PI/180, 50,tamanho,(int)tamanho2); // runs the actual detection
+        Imgproc.HoughLinesP(edges, linesP, 1, Math.PI/180, 50,tamanho+10,(int)tamanho2); // runs the actual detection
         ArrayList<Linhas> linhas = new ArrayList<Linhas>();
         Linhas linha;
         // Draw the lines
         for (int x = 0; x < linesP.rows(); x++) {
             double[] l = linesP.get(x, 0);
-            //Imgproc.line(cdstP, new Point(l[0], l[1]), new Point(l[2], l[3]), new Scalar(0, 255, 0), 1, Imgproc.LINE_AA, 0);
-            linha = new Linhas(new Point(l[0], l[1]), new Point(l[2], l[3]));
-            linhas.add(linha);
+            //Imgproc.line(cdstP, new Point(l[0], l[1]), new Point(l[2], l[3]), new Scalar(0, 255, 0), 1, Imgproc.LINE_AA, 0); Todas as linhas encontradas
+            linha = new Linhas(new Point(l[0], l[1]), new Point(l[2], l[3]));//Criar uma linha
+            linhas.add(linha);//Botar a linha no vetor de linhas
         }
-        System.out.println("Size total:" + linhas.size() );
-        linhasParalelas = findGroups(linhas,0.2);
-        if(linhasParalelas.size() >= 3) {
-            System.out.println(linhasParalelas.size());
+
+        //System.out.println("Size total:" + linhas.size() );
+
+        timeLimit = 0;
+        todasCaixas = new ArrayList<Caixas>();
+        linhasParalelas = findGroups(linhas,0.2); // Calcular os grupos de retas, se é 2 ou 1 ou 0.
+
+
+        if(linhasParalelas.size() >= 3) { // Verificar se achou os 3 grupos.
+
             int[] x = new int[linhasParalelas.size()];
             flag = false;
+
             /*for(int i = 0; i < linhasParalelas.size(); i++){
                 Imgproc.line(cdstP, linhasParalelas.get(i).linhas.get(0).primeiro, linhasParalelas.get(i).linhas.get(0).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
             }*/
+            //Primeiro metodo para encontrar as caixas, usando 3 combinacoes.
             //combinationTodasRetas(3, 3, x, 0, 0);
-            TodasLinhas = new ArrayList<Linhas>();
-            outroMetodo();
+
+            //Segundo metodo para encontrar as caixas, usando uma heuristica.
+            int posicao = 0;
+            //Achar a posicao do tipo de reta = 2.
+            for(int i = 0; i < linhasParalelas.size(); i++) {
+                if(linhasParalelas.get(i).linhas.get(0).tipoReta == 2) {
+                    posicao = i;
+                }
+            }
+            TodasLinhas = new ArrayList<Linhas>(); // Colocar todos as retas que nao sao do tipo 2.
+            for(int i = 0; i < linhasParalelas.size(); i++) {
+                if (i != posicao) {
+                    for (int j = 0; j < linhasParalelas.get(i).linhas.size(); j++) {
+                        TodasLinhas.add(linhasParalelas.get(i).linhas.get(j));
+                        System.out.println("Tipo de reta: " + linhasParalelas.get(i).linhas.get(j).tipoReta);
+                    }
+                }
+            }
+            do {
+                flag = false;
+                outroMetodo(posicao);//Outro metodo para encontrar a caixa.
+                timeLimit++;
+            }while(timeLimit <= 10 && (linhasParalelas.get(posicao).linhas.size() >= 3 && TodasLinhas.size() >= 6));
 
         }
         int cont = 0;
@@ -150,31 +187,22 @@ public class BoxDetectionFragment extends Fragment{
             }
         }*/
         System.out.println("Deixou: " + cont);
-        Bitmap resultBitmap = Bitmap.createBitmap(cdstP.cols(), cdstP.rows(), Bitmap.Config.ARGB_8888);
+        Toast.makeText(getActivity(), "Boxes find: " + todasCaixas.size(), Toast.LENGTH_SHORT).show();//Mensagem de Caixas encontradas.
+        Bitmap resultBitmap = Bitmap.createBitmap(cdstP.cols(), cdstP.rows(), Bitmap.Config.ARGB_8888);//Pega o bitmap do resultado.
         Utils.matToBitmap(cdstP, resultBitmap);
-        imageView.setImageBitmap(resultBitmap);
+        imageView.setImageBitmap(resultBitmap);//Coloca a imagem.
     }
 
-    private void outroMetodo() {
-        int posicao = 0;
-        for(int i = 0; i < linhasParalelas.size(); i++) {
-            if(linhasParalelas.get(i).linhas.get(0).tipoReta == 2) {
-                posicao = i;
-            }
-        }
-        for(int i = 0; i < linhasParalelas.size(); i++) {
-            if (i != posicao) {
-                for (int j = 0; j < linhasParalelas.get(i).linhas.size(); j++) {
-                    TodasLinhas.add(linhasParalelas.get(i).linhas.get(j));
-                }
-            }
-        }
+
+
+    private void outroMetodo(int posicao) {
         for(int i = 0; i < linhasParalelas.get(posicao).linhas.size(); i++) {
-            System.out.println(linhasParalelas.get(posicao).linhas.get(i).primeiro.x + "TipoReta: " + linhasParalelas.get(posicao).linhas.get(i).tipoReta );
+           System.out.println(linhasParalelas.get(posicao).linhas.get(i).primeiro.x + " TipoReta: " + linhasParalelas.get(posicao).linhas.get(i).tipoReta );
         }
         int[] x = new int[linhasParalelas.get(posicao).linhas.size()];
         combinationNoventaGraus(linhasParalelas.get(posicao).linhas.size(),3,x,0,0,posicao);
     }
+
 
     private void combinationNoventaGraus(int n, int r, int x [], int next, int k,int posicao) {
         int i;
@@ -193,25 +221,36 @@ public class BoxDetectionFragment extends Fragment{
     }
 
     private int acharCaixa(int[] x,int posicao) {
-        int [] retas = new int[6];
+
+        int [] retas = new int[6]; //Vetor de inteiros, que acham as posicoes das retas, no vetor de TodasLinhas
+        //Setar todos como nao encontrados.
         for(int i = 0; i < 6; i++) {
             retas[i] = -1;
         }
-        int tmp1 = acharRetas(linhasParalelas.get(0).linhas.get(x[0]).primeiro,linhasParalelas.get(0).linhas.get(x[1]).primeiro,linhasParalelas.get(0).linhas.get(x[1]).ultimo);
-        int tmp2 = acharRetas(linhasParalelas.get(0).linhas.get(x[0]).ultimo,linhasParalelas.get(0).linhas.get(x[1]).primeiro,linhasParalelas.get(0).linhas.get(x[1]).ultimo);
+
+        int tmp1 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[0]).primeiro,linhasParalelas.get(posicao).linhas.get(x[1]).primeiro,linhasParalelas.get(posicao).linhas.get(x[1]).ultimo,retas);//Buscar a primeira Reta.
+
+        int tmp2 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[0]).ultimo,linhasParalelas.get(posicao).linhas.get(x[1]).primeiro,linhasParalelas.get(posicao).linhas.get(x[1]).ultimo,retas);
+
+        //Vericiar se encontrou a reta.
         if(tmp1 == -1 || tmp2 == -1) {
             return 1;
         }
         retas[0] = tmp1;
         retas[1] = tmp2;
-        tmp1 = acharRetas(linhasParalelas.get(0).linhas.get(x[1]).primeiro,linhasParalelas.get(0).linhas.get(x[2]).primeiro,linhasParalelas.get(0).linhas.get(x[2]).ultimo);
-        tmp2 = acharRetas(linhasParalelas.get(0).linhas.get(x[1]).ultimo,linhasParalelas.get(0).linhas.get(x[2]).primeiro,linhasParalelas.get(0).linhas.get(x[2]).ultimo);
+
+        tmp1 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[1]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).ultimo,retas);
+
+        tmp2 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[1]).ultimo,linhasParalelas.get(posicao).linhas.get(x[2]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).ultimo,retas);
+
         if(tmp1 == -1 || tmp2 == -1) {
             return 1;
         }
+
         retas[2] = tmp1;
         retas[3] = tmp2;
-        boolean test = acharRetasFinais(linhasParalelas.get(0).linhas.get(x[0]).primeiro,linhasParalelas.get(0).linhas.get(x[0]).ultimo,linhasParalelas.get(0).linhas.get(x[2]).primeiro,linhasParalelas.get(0).linhas.get(x[2]).ultimo,retas);
+
+        boolean test = acharRetasFinais(linhasParalelas.get(posicao).linhas.get(x[0]).primeiro,linhasParalelas.get(posicao).linhas.get(x[0]).ultimo,linhasParalelas.get(posicao).linhas.get(x[2]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).ultimo,retas);
 
         if(test) {
             flag = true;
@@ -222,10 +261,81 @@ public class BoxDetectionFragment extends Fragment{
             for(int i = 0; i < 6; i++){
                 Imgproc.line(cdstP, TodasLinhas.get(retas[i]).primeiro,TodasLinhas.get(retas[i]).ultimo, new Scalar(255, 0, 0), 3, Imgproc.LINE_AA, 0);
             }
+            Arrays.sort(retas);
+            Caixas caixa = new Caixas();
+            for(int i = 2; i >= 0; i--) {
+                System.out.println("90: " + i);
+                caixa.linhas.add(linhasParalelas.get(posicao).linhas.get(i));
+                linhasParalelas.get(posicao).linhas.remove(i);
+            }
+            for(int i = 5; i>= 0; i--) {
+                System.out.println("N90: " + retas[i]);
+                caixa.linhas.add(TodasLinhas.get(retas[i]));
+                TodasLinhas.remove((retas[i]));
+            }
+            todasCaixas.add(caixa);
         }
 
         return 0;
     }
+
+
+    private  int acharRetas(Point primeiro, Point segundo1, Point segundo2,int [] retas) {
+        int resp = -1;
+        for(int i = 0; i < TodasLinhas.size(); i++) {
+            if(distanciaEuclidiana(primeiro,TodasLinhas.get(i).primeiro) <= tamanho && distanciaEuclidiana(segundo1,TodasLinhas.get(i).ultimo) <= tamanho && !retasEncontradasComeco(i,retas)) {
+                resp = i;
+                break;
+            }else if(distanciaEuclidiana(primeiro,TodasLinhas.get(i).ultimo) <= tamanho && distanciaEuclidiana(segundo1,TodasLinhas.get(i).primeiro) <= tamanho && !retasEncontradasComeco(i,retas)) {
+                resp = i;
+                break;
+            }
+
+        }
+        if(resp != -1) {
+            return resp;
+        }
+        for(int i = 0; i < TodasLinhas.size(); i++) {
+            if(distanciaEuclidiana(primeiro,TodasLinhas.get(i).primeiro) <= tamanho && distanciaEuclidiana(segundo2,TodasLinhas.get(i).ultimo) <= tamanho && !retasEncontradasComeco(i,retas)) {
+                resp = i;
+                break;
+            }else if(distanciaEuclidiana(primeiro,TodasLinhas.get(i).ultimo) <= tamanho && distanciaEuclidiana(segundo2,TodasLinhas.get(i).primeiro) <= tamanho && !retasEncontradasComeco(i,retas)) {
+                resp = i;
+                break;
+            }
+        }
+        return resp;
+    }
+
+    private boolean retasEncontradasComeco(int x, int[] retas) {
+        for(int i = 0; i < retas.length; i++) {
+            if(x == retas[i]) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    private boolean retasEncontrada(int x, int[] retas, ArrayList<Integer> retasPrimeiro, ArrayList<Integer> retasUltimo) {
+        for(int i = 0; i < retas.length; i++) {
+            if(x == retas[i]) {
+                return true;
+            }
+        }
+        for(int i = 0; i < retasPrimeiro.size(); i++) {
+            if(x == retasPrimeiro.get(i)) {
+                return true;
+            }
+        }
+        for(int i = 0; i < retasUltimo.size(); i++) {
+            if(x == retasUltimo.get(i)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 
     private boolean acharRetasFinais(Point primeiro, Point ultimo, Point primeiro1, Point ultimo1, int[] retas) {
         boolean resp = false;
@@ -236,30 +346,30 @@ public class BoxDetectionFragment extends Fragment{
         ArrayList<Integer> retasUltimo = new ArrayList<>();
 
         for(int i = 0; i < TodasLinhas.size(); i++) {
-            if(!retasEncontrada(i,retas,retasPrimeiro,retasUltimo)) {
-                if(distanciaEuclidiana(primeiro,TodasLinhas.get(i).primeiro) <= tamanho || distanciaEuclidiana(primeiro,TodasLinhas.get(i).ultimo) <= tamanho) {
-                    retasPrimeiro.add(i);
-                }
-                if(distanciaEuclidiana(ultimo,TodasLinhas.get(i).primeiro) <= tamanho || distanciaEuclidiana(ultimo,TodasLinhas.get(i).ultimo) <= tamanho) {
-                    retasPrimeiro.add(i);
-                }
 
-                if(distanciaEuclidiana(primeiro1,TodasLinhas.get(i).primeiro) <= tamanho || distanciaEuclidiana(primeiro1,TodasLinhas.get(i).ultimo) <= tamanho) {
-                    retasUltimo.add(i);
-                }
-                if(distanciaEuclidiana(ultimo1,TodasLinhas.get(i).primeiro) <= tamanho || distanciaEuclidiana(ultimo1,TodasLinhas.get(i).ultimo) <= tamanho) {
-                    retasUltimo.add(i);
-                }
+            if(distanciaEuclidiana(primeiro,TodasLinhas.get(i).primeiro) <= tamanho || distanciaEuclidiana(primeiro,TodasLinhas.get(i).ultimo) <= tamanho && !retasEncontrada(i,retas,retasPrimeiro,retasUltimo)) {
+                retasPrimeiro.add(i);
             }
+            if(distanciaEuclidiana(ultimo,TodasLinhas.get(i).primeiro) <= tamanho || distanciaEuclidiana(ultimo,TodasLinhas.get(i).ultimo) <= tamanho && !retasEncontrada(i,retas,retasPrimeiro,retasUltimo)) {
+                retasPrimeiro.add(i);
+            }
+
+            if(distanciaEuclidiana(primeiro1,TodasLinhas.get(i).primeiro) <= tamanho || distanciaEuclidiana(primeiro1,TodasLinhas.get(i).ultimo) <= tamanho && !retasEncontrada(i,retas,retasPrimeiro,retasUltimo)) {
+                retasUltimo.add(i);
+            }
+            if(distanciaEuclidiana(ultimo1,TodasLinhas.get(i).primeiro) <= tamanho || distanciaEuclidiana(ultimo1,TodasLinhas.get(i).ultimo) <= tamanho && !retasEncontrada(i,retas,retasPrimeiro,retasUltimo)) {
+                retasUltimo.add(i);
+            }
+
         }
 
         for(int i = 0; i < retasPrimeiro.size(); i++) {
             for(int j = 0; j < retasUltimo.size(); j++) {
                 if(distanciaEuclidiana(TodasLinhas.get(retasPrimeiro.get(i)).primeiro,TodasLinhas.get(retasUltimo.get(j)).primeiro) <= tamanho) {
-                   retas[4] = retasPrimeiro.get(i);
-                   retas[5] = retasUltimo.get(j);
-                   resp = true;
-                   break;
+                    retas[4] = retasPrimeiro.get(i);
+                    retas[5] = retasUltimo.get(j);
+                    resp = true;
+                    break;
                 }
                 if(distanciaEuclidiana(TodasLinhas.get(retasPrimeiro.get(i)).primeiro,TodasLinhas.get(retasUltimo.get(j)).ultimo) <= tamanho) {
                     retas[4] = retasPrimeiro.get(i);
@@ -287,51 +397,45 @@ public class BoxDetectionFragment extends Fragment{
         return resp;
     }
 
-    private boolean retasEncontrada(int x, int[] retas, ArrayList<Integer> retasPrimeiro, ArrayList<Integer> retasUltimo) {
-        for(int i = 0; i < retas.length; i++) {
-            if(x == retas[i]) {
-                return true;
-            }
-        }
-        for(int i = 0; i < retasPrimeiro.size(); i++) {
-            if(x == retasPrimeiro.get(i)) {
-                return true;
-            }
-        }
-        for(int i = 0; i < retasUltimo.size(); i++) {
-            if(x == retasUltimo.get(i)) {
-                return true;
-            }
-        }
-        return false;
-    }
 
-    private  int acharRetas(Point primeiro, Point segundo1, Point segundo2) {
-        int resp = -1;
-        for(int i = 0; i < TodasLinhas.size(); i++) {
-            if(distanciaEuclidiana(primeiro,TodasLinhas.get(i).primeiro) <= tamanho && distanciaEuclidiana(segundo1,TodasLinhas.get(i).ultimo) <= tamanho) {
-                resp = i;
-                break;
-            }else if(distanciaEuclidiana(primeiro,TodasLinhas.get(i).ultimo) <= tamanho && distanciaEuclidiana(segundo1,TodasLinhas.get(i).primeiro) <= tamanho) {
-                resp = i;
-                break;
-            }
+    /*private boolean verificarSeECaixa(int [] vetorRetasParalelas, int [] primeirasRetas, int [] segundasRetas, int [] terceirasRetas) {
+        boolean resp = false;
+        ArrayList<Point> pontos = new ArrayList<Point>();
+        ArrayList<Integer> passoTodos = new ArrayList<Integer>();
+        int tmp = 0;
+        for(int i = 0; i < 3; i++){
+            if(!acharPontos(linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).primeiro,pontos,passoTodos)) {
+                pontos.add(linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).primeiro);
+                passoTodos.add(tmp);
 
-        }
-        if(resp != -1) {
-            return resp;
-        }
-        for(int i = 0; i < TodasLinhas.size(); i++) {
-            if(distanciaEuclidiana(primeiro,TodasLinhas.get(i).primeiro) <= tamanho && distanciaEuclidiana(segundo2,TodasLinhas.get(i).ultimo) <= tamanho) {
-                resp = i;
-                break;
-            }else if(distanciaEuclidiana(primeiro,TodasLinhas.get(i).ultimo) <= tamanho && distanciaEuclidiana(segundo2,TodasLinhas.get(i).primeiro) <= tamanho) {
-                resp = i;
-                break;
             }
+            if(!acharPontos(linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).ultimo,pontos,passoTodos)) {
+                pontos.add(linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).ultimo);
+                passoTodos.add(tmp);
+            }
+            if(!acharPontos(linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]).primeiro,pontos,passoTodos)) {
+                pontos.add(linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]).primeiro);
+                passoTodos.add(tmp);
+            }
+            if(!acharPontos(linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]).ultimo,pontos,passoTodos)) {
+                pontos.add(linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]).ultimo);
+                passoTodos.add(tmp);
+            }
+            if(!acharPontos(linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).primeiro,pontos,passoTodos)) {
+                pontos.add(linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).primeiro);
+                passoTodos.add(tmp);
+            }
+            if(!acharPontos(linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).ultimo,pontos,passoTodos)) {
+                pontos.add(linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).ultimo);
+                passoTodos.add(tmp);
+            }
+        }
+        //System.out.println("Contador : " + pontos.size() + "True :" + passoTodos.size());
+        if(pontos.size() == 7 && allTrue(passoTodos)) { // Para testar, mudar esses valores.
+            resp = true; // Para testar comente isso <<.
         }
         return resp;
-    }
+    }*/
 
 
     private void combinationTodasRetas(int n, int r, int x [],int next,int k) {
