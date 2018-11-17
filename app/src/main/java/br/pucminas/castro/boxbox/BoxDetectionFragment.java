@@ -36,13 +36,14 @@ import java.util.Comparator;
 import java.util.Arrays;
 
 public class BoxDetectionFragment extends Fragment{
+    //Variaveis globais.
     ImageView imageView;
     Bitmap bitmap;
     ArrayList<LinhasParalelas> linhasParalelas;
     boolean flag;
     Mat cdstP;
-    double tamanho;
-    ArrayList<Linhas> TodasLinhas;
+    double tamanhoDistancia;
+    ArrayList<Linhas> todasLinhas;
     ArrayList<Caixas> todasCaixas;
     int timeLimit;
     @Nullable
@@ -85,9 +86,10 @@ public class BoxDetectionFragment extends Fragment{
         }
     }
 
-    /** Metodo para Achar somente as linhas, usando canny e a transformada de houghPrababilistica.
-      *
-      */
+    /**
+     * Metodo para Achar somente as linhas, usando canny e a transformada de houghPrababilistica.
+     *
+     */
     private void detectEdges() {
 
         //Preparando para usar o canny.
@@ -98,12 +100,12 @@ public class BoxDetectionFragment extends Fragment{
 
         Mat rgba = new Mat(); //Pegando a imagem.
         Utils.bitmapToMat(bitmap, rgba); //Passando a imagem para bitmap.
-        Size size = rgba.size(); // Pegando o tamanho da imagem.
+        Size size = rgba.size(); // Pegando o tamanhoDistancia da imagem.
 
-        tamanho = ((size.height + size.width) / 100)*3; // Pegando o tamanho limite para os calculos abaixo.
-        double tamanho2 = ((size.height + size.width) / 100)*1; // Pegando o tamanho limite para o tamanho de 2 linhas se encontrarem, para considerar uma linha so.
+        tamanhoDistancia = ((size.height + size.width) / 100)*3; // Pegando o tamanhoDistancia limite para os calculos abaixo.
+        double tamanhoDistancia2 = ((size.height + size.width) / 100)*1; // Pegando o tamanhoDistancia limite para o tamanhoDistancia de 2 linhas se encontrarem, para considerar uma linha so.
 
-        System.out.println(tamanho);
+        System.out.println(tamanhoDistancia);
         Mat edges = new Mat();//(rgba.size(), CvType.CV_8UC3);
 
         Imgproc.cvtColor(rgba,rgba,Imgproc.COLOR_BGRA2BGR); // Passando a imagem para usar o filtro bilateral
@@ -126,7 +128,7 @@ public class BoxDetectionFragment extends Fragment{
         // Now using Hough Probabilistic Line Transform.
         // Probabilistic Line Transform.
         Mat linesP = new Mat(); // will hold the results of the detection
-        Imgproc.HoughLinesP(edges, linesP, 1, Math.PI/180, 50,tamanho+10,(int)tamanho2); // runs the actual detection
+        Imgproc.HoughLinesP(edges, linesP, 1, Math.PI/180, 50,tamanhoDistancia+10,(int)tamanhoDistancia2); // runs the actual detection
         ArrayList<Linhas> linhas = new ArrayList<Linhas>();
         Linhas linha;
         // Draw the lines
@@ -141,19 +143,16 @@ public class BoxDetectionFragment extends Fragment{
 
         timeLimit = 0;
         todasCaixas = new ArrayList<Caixas>();
-        linhasParalelas = findGroups(linhas,0.2); // Calcular os grupos de retas, se é 2 ou 1 ou 0.
+        linhasParalelas = acharGrouposDeGraus(linhas); // Calcular os grupos de retas, se é 2 ou 1 ou 0.
 
 
         if(linhasParalelas.size() >= 3) { // Verificar se achou os 3 grupos.
 
             int[] x = new int[linhasParalelas.size()];
             flag = false;
-
-            /*for(int i = 0; i < linhasParalelas.size(); i++){
-                Imgproc.line(cdstP, linhasParalelas.get(i).linhas.get(0).primeiro, linhasParalelas.get(i).linhas.get(0).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
-            }*/
+            //TODO Fazer um if, para escolher qual opcao vai escolher.
             //Primeiro metodo para encontrar as caixas, usando 3 combinacoes.
-            //combinationTodasRetas(3, 3, x, 0, 0);
+            //combinacaoDeTodasRetas(linhasParalelas.size(), 3, x, 0, 0); Metodo com todas combinações, principal metodo para achar a caixa.
 
             //Segundo metodo para encontrar as caixas, usando uma heuristica.
             int posicao = 0;
@@ -163,30 +162,24 @@ public class BoxDetectionFragment extends Fragment{
                     posicao = i;
                 }
             }
-            TodasLinhas = new ArrayList<Linhas>(); // Colocar todos as retas que nao sao do tipo 2.
+            todasLinhas = new ArrayList<Linhas>(); // Colocar todos as retas que nao sao do tipo 2.
             for(int i = 0; i < linhasParalelas.size(); i++) {
                 if (i != posicao) {
                     for (int j = 0; j < linhasParalelas.get(i).linhas.size(); j++) {
-                        TodasLinhas.add(linhasParalelas.get(i).linhas.get(j));
+                        todasLinhas.add(linhasParalelas.get(i).linhas.get(j));
                         System.out.println("Tipo de reta: " + linhasParalelas.get(i).linhas.get(j).tipoReta);
                     }
                 }
             }
             do {
                 flag = false;
-                outroMetodo(posicao);//Outro metodo para encontrar a caixa.
+                segundaHeuristica(posicao);//Outro metodo para encontrar a caixa.
                 timeLimit++;
-            }while(timeLimit <= 10 && (linhasParalelas.get(posicao).linhas.size() >= 3 && TodasLinhas.size() >= 6));
+            }while(timeLimit <= 10 && (linhasParalelas.get(posicao).linhas.size() >= 3 && todasLinhas.size() >= 6));
 
         }
-        int cont = 0;
-       /* for(int i = 0; i < linhasParalelas.size();i++){
-            for(int j = 0; j < linhasParalelas.get(i).linhas.size();j++){
-                //Imgproc.line(cdstP,linhasParalelas.get(i).linhas.get(j).primeiro, linhasParalelas.get(i).linhas.get(j).ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
-                cont++;
-            }
-        }*/
-        System.out.println("Deixou: " + cont);
+        
+        
         Toast.makeText(getActivity(), "Boxes find: " + todasCaixas.size(), Toast.LENGTH_SHORT).show();//Mensagem de Caixas encontradas.
         Bitmap resultBitmap = Bitmap.createBitmap(cdstP.cols(), cdstP.rows(), Bitmap.Config.ARGB_8888);//Pega o bitmap do resultado.
         Utils.matToBitmap(cdstP, resultBitmap);
@@ -194,17 +187,28 @@ public class BoxDetectionFragment extends Fragment{
     }
 
 
-
-    private void outroMetodo(int posicao) {
+    /**
+     * Metodo para comecar a segunda heuristica.
+     * @param posicao e a posicao da lista que as retas de 90 graus se encontram.
+     */
+    private void segundaHeuristica(int posicao) {
         for(int i = 0; i < linhasParalelas.get(posicao).linhas.size(); i++) {
            System.out.println(linhasParalelas.get(posicao).linhas.get(i).primeiro.x + " TipoReta: " + linhasParalelas.get(posicao).linhas.get(i).tipoReta );
         }
         int[] x = new int[linhasParalelas.get(posicao).linhas.size()];
-        combinationNoventaGraus(linhasParalelas.get(posicao).linhas.size(),3,x,0,0,posicao);
+        combinacaoDeNoventaGraus(linhasParalelas.get(posicao).linhas.size(),3,x,0,0,posicao);
     }
 
-
-    private void combinationNoventaGraus(int n, int r, int x [], int next, int k,int posicao) {
+    /**
+     * Metodo para fazer a combinacao das retas de 90 graus para o calculo da segunda heuristica.
+     * @param n tamanho da lista.
+     * @param r tamanho do grupo.
+     * @param x vetor auxiliar.
+     * @param next proxima posicao que a combinacao irar comecar.
+     * @param k verificador para ver se o grupo esta cheio.
+     * @param posicao e a posicao da lista que as retas de 90 graus se encontram.
+     */
+    private void combinacaoDeNoventaGraus(int n, int r, int x [], int next, int k,int posicao) {
         int i;
         if(k == r && flag != true) {
             int tmp = acharCaixa(x,posicao);
@@ -215,78 +219,98 @@ public class BoxDetectionFragment extends Fragment{
             for(i = next; i < n; i++) {
                 x[k] = i;
                 if(flag != true)
-                    combinationNoventaGraus(n,r,x,i+1,k+1,posicao);
+                    combinacaoDeNoventaGraus(n,r,x,i+1,k+1,posicao);
             }
         }
     }
 
+    /**
+     * Metodo que comeca a fazer a segunda heuristica.
+     * @param x vetor de posicoes , vindo da combinacao.
+     * @param posicao e a posicao da lista que as retas de 90 graus se encontram.
+     * @return int 0 para achou uma caixa, se nao outra valor para falar que nao achou.
+     */
     private int acharCaixa(int[] x,int posicao) {
 
-        int [] retas = new int[6]; //Vetor de inteiros, que acham as posicoes das retas, no vetor de TodasLinhas
+        int [] retas = new int[6]; //Vetor de inteiros, que acham as posicoes das retas, no vetor de todasLinhas
         //Setar todos como nao encontrados.
         for(int i = 0; i < 6; i++) {
             retas[i] = -1;
         }
 
-        int tmp1 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[0]).primeiro,linhasParalelas.get(posicao).linhas.get(x[1]).primeiro,linhasParalelas.get(posicao).linhas.get(x[1]).ultimo,retas);//Buscar a primeira Reta.
+        int tmp1 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[0]).primeiro,linhasParalelas.get(posicao).linhas.get(x[1]).primeiro,linhasParalelas.get(posicao).linhas.get(x[1]).ultimo,retas);//Busca a primeira Reta.
 
-        int tmp2 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[0]).ultimo,linhasParalelas.get(posicao).linhas.get(x[1]).primeiro,linhasParalelas.get(posicao).linhas.get(x[1]).ultimo,retas);
+        int tmp2 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[0]).ultimo,linhasParalelas.get(posicao).linhas.get(x[1]).primeiro,linhasParalelas.get(posicao).linhas.get(x[1]).ultimo,retas); //Busca a segunda Reta.
 
         //Vericiar se encontrou a reta.
         if(tmp1 == -1 || tmp2 == -1) {
             return 1;
         }
+        //Colocando as retas no vetor de posicoes das retas.
         retas[0] = tmp1;
         retas[1] = tmp2;
 
-        tmp1 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[1]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).ultimo,retas);
+        tmp1 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[1]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).ultimo,retas);//Busca a terceira Reta.
 
-        tmp2 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[1]).ultimo,linhasParalelas.get(posicao).linhas.get(x[2]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).ultimo,retas);
+        tmp2 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[1]).ultimo,linhasParalelas.get(posicao).linhas.get(x[2]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).ultimo,retas);//Busca a quarta Reta.
 
         if(tmp1 == -1 || tmp2 == -1) {
             return 1;
         }
-
+        //Colocando as retas no vetor de posicoes das retas.
         retas[2] = tmp1;
         retas[3] = tmp2;
-
+        //Ultimo teste, verifica se acha as duas ultimas retas.
         boolean test = acharRetasFinais(linhasParalelas.get(posicao).linhas.get(x[0]).primeiro,linhasParalelas.get(posicao).linhas.get(x[0]).ultimo,linhasParalelas.get(posicao).linhas.get(x[2]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).ultimo,retas);
-
+        //Caso o teste volto positivo, achou uma caixa.
         if(test) {
             flag = true;
-
+            //TODO tirar esses prints, e criar um metodo para printar as retas já encontradas.
+            //Mostrar todas as retas da caixa.
             for(int i = 0; i < 3; i++){
                 Imgproc.line(cdstP, linhasParalelas.get(posicao).linhas.get(x[i]).primeiro, linhasParalelas.get(posicao).linhas.get(x[i]).ultimo, new Scalar(255, 0, 0), 3, Imgproc.LINE_AA, 0);
             }
             for(int i = 0; i < 6; i++){
-                Imgproc.line(cdstP, TodasLinhas.get(retas[i]).primeiro,TodasLinhas.get(retas[i]).ultimo, new Scalar(255, 0, 0), 3, Imgproc.LINE_AA, 0);
+                Imgproc.line(cdstP, todasLinhas.get(retas[i]).primeiro,todasLinhas.get(retas[i]).ultimo, new Scalar(255, 0, 0), 3, Imgproc.LINE_AA, 0);
             }
+            //Ordenando o vetor de retas, para que nao haja nenhum erro ao retilar elas na lista.
             Arrays.sort(retas);
             Caixas caixa = new Caixas();
+            //Retirando as retas na lista de 90 graus
             for(int i = 2; i >= 0; i--) {
                 System.out.println("90: " + i);
                 caixa.linhas.add(linhasParalelas.get(posicao).linhas.get(i));
                 linhasParalelas.get(posicao).linhas.remove(i);
             }
+            //Retirando as retas na lista das retas restantes
             for(int i = 5; i>= 0; i--) {
                 System.out.println("N90: " + retas[i]);
-                caixa.linhas.add(TodasLinhas.get(retas[i]));
-                TodasLinhas.remove((retas[i]));
+                caixa.linhas.add(todasLinhas.get(retas[i]));
+                todasLinhas.remove((retas[i]));
             }
+            //Adicionando a caixa no vetor de caixas.
             todasCaixas.add(caixa);
         }
 
         return 0;
     }
 
-
+    /**
+     * Metodo para encontrar retas, dado 3 pontos, 1 e da reta principal o outros dois e da reta secundaria, verifica se a uma reta que tem 2 pontos em comum.
+     * Nesse metodo ele pega o Primeiro ponto, que serve como um ponto ja encontrada, e depois pega os outros 2 pontos Segundo1 e Segundo2 para verifica se tem um reta do ponto Primeiro a Segundo1 ou Primeiro a Segundo2.
+     * @param primeiro primeiro ponto.
+     * @param segundo1 segundo ponto inicial.
+     * @param segundo2 segundo ponto final.
+     * @param retas vetor de retas ja encontradas, para que nao repita as retas.
+     * @return int a posicao da reta encontrada.
+     */
     private  int acharRetas(Point primeiro, Point segundo1, Point segundo2,int [] retas) {
         int resp = -1;
-        for(int i = 0; i < TodasLinhas.size(); i++) {
-            if(distanciaEuclidiana(primeiro,TodasLinhas.get(i).primeiro) <= tamanho && distanciaEuclidiana(segundo1,TodasLinhas.get(i).ultimo) <= tamanho && !retasEncontradasComeco(i,retas)) {
+        for(int i = 0; i < todasLinhas.size(); i++) {
+            if(distanciaEuclidiana(primeiro,todasLinhas.get(i).primeiro) <= tamanhoDistancia && distanciaEuclidiana(segundo1,todasLinhas.get(i).ultimo) <= tamanhoDistancia && !retasEncontradasComeco(i,retas)) {
                 resp = i;
                 break;
-            }else if(distanciaEuclidiana(primeiro,TodasLinhas.get(i).ultimo) <= tamanho && distanciaEuclidiana(segundo1,TodasLinhas.get(i).primeiro) <= tamanho && !retasEncontradasComeco(i,retas)) {
+            }else if(distanciaEuclidiana(primeiro,todasLinhas.get(i).ultimo) <= tamanhoDistancia && distanciaEuclidiana(segundo1,todasLinhas.get(i).primeiro) <= tamanhoDistancia && !retasEncontradasComeco(i,retas)) {
                 resp = i;
                 break;
             }
@@ -295,11 +319,11 @@ public class BoxDetectionFragment extends Fragment{
         if(resp != -1) {
             return resp;
         }
-        for(int i = 0; i < TodasLinhas.size(); i++) {
-            if(distanciaEuclidiana(primeiro,TodasLinhas.get(i).primeiro) <= tamanho && distanciaEuclidiana(segundo2,TodasLinhas.get(i).ultimo) <= tamanho && !retasEncontradasComeco(i,retas)) {
+        for(int i = 0; i < todasLinhas.size(); i++) {
+            if(distanciaEuclidiana(primeiro,todasLinhas.get(i).primeiro) <= tamanhoDistancia && distanciaEuclidiana(segundo2,todasLinhas.get(i).ultimo) <= tamanhoDistancia && !retasEncontradasComeco(i,retas)) {
                 resp = i;
                 break;
-            }else if(distanciaEuclidiana(primeiro,TodasLinhas.get(i).ultimo) <= tamanho && distanciaEuclidiana(segundo2,TodasLinhas.get(i).primeiro) <= tamanho && !retasEncontradasComeco(i,retas)) {
+            }else if(distanciaEuclidiana(primeiro,todasLinhas.get(i).ultimo) <= tamanhoDistancia && distanciaEuclidiana(segundo2,todasLinhas.get(i).primeiro) <= tamanhoDistancia && !retasEncontradasComeco(i,retas)) {
                 resp = i;
                 break;
             }
@@ -307,6 +331,12 @@ public class BoxDetectionFragment extends Fragment{
         return resp;
     }
 
+    /**
+     * Metodo para verifica se as retas ja foram encontradas.
+     * @param x posicao da reta a ser ferificada.
+     * @param retas vetor de posicao de retas.
+     * @return boolean true se existe a reta, false se nao.
+     */
     private boolean retasEncontradasComeco(int x, int[] retas) {
         for(int i = 0; i < retas.length; i++) {
             if(x == retas[i]) {
@@ -316,7 +346,14 @@ public class BoxDetectionFragment extends Fragment{
         return false;
     }
 
-
+    /**
+     * Metodo para verifica se as retas ja foram encontradas. Incluindo as retas das listas.
+     * @param x posicao da reta a ser ferificada.
+     * @param retas vetor de posicao de retas.
+     * @param retasPrimeiro lista de retas ja encontradas, retas da primeira linha de 90 graus.
+     * @param retasUltimo lista de retas ja encontradas, retas da ultimo linha de 90 graus.
+     * @return boolean true se existe a reta, false se nao.
+     */
     private boolean retasEncontrada(int x, int[] retas, ArrayList<Integer> retasPrimeiro, ArrayList<Integer> retasUltimo) {
         for(int i = 0; i < retas.length; i++) {
             if(x == retas[i]) {
@@ -336,7 +373,15 @@ public class BoxDetectionFragment extends Fragment{
         return false;
     }
 
-
+    /**
+     * Metodo para encontrar as 2 retas faltantes para forma a caixa.
+     * @param primeiro Primeiro ponto, da primeira reta.
+     * @param ultimo Ultimo ponto, da primeira reta.
+     * @param primeiro1 Primeiro ponto, da segunda reta.
+     * @param ultimo1 Ultimo ponto, da segunda reta.
+     * @param retas vetor de retas ja encontradas.
+     * @return boolean true para achar as retas faltantes(achou a caixa), false para nao achar as retas faltantes(nao achou a caixa).
+     */
     private boolean acharRetasFinais(Point primeiro, Point ultimo, Point primeiro1, Point ultimo1, int[] retas) {
         boolean resp = false;
         int [] tmp = new int [2];
@@ -345,19 +390,19 @@ public class BoxDetectionFragment extends Fragment{
         ArrayList<Integer> retasPrimeiro = new ArrayList<>();
         ArrayList<Integer> retasUltimo = new ArrayList<>();
 
-        for(int i = 0; i < TodasLinhas.size(); i++) {
+        for(int i = 0; i < todasLinhas.size(); i++) {
 
-            if(distanciaEuclidiana(primeiro,TodasLinhas.get(i).primeiro) <= tamanho || distanciaEuclidiana(primeiro,TodasLinhas.get(i).ultimo) <= tamanho && !retasEncontrada(i,retas,retasPrimeiro,retasUltimo)) {
+            if(distanciaEuclidiana(primeiro,todasLinhas.get(i).primeiro) <= tamanhoDistancia || distanciaEuclidiana(primeiro,todasLinhas.get(i).ultimo) <= tamanhoDistancia && !retasEncontrada(i,retas,retasPrimeiro,retasUltimo)) {
                 retasPrimeiro.add(i);
             }
-            if(distanciaEuclidiana(ultimo,TodasLinhas.get(i).primeiro) <= tamanho || distanciaEuclidiana(ultimo,TodasLinhas.get(i).ultimo) <= tamanho && !retasEncontrada(i,retas,retasPrimeiro,retasUltimo)) {
+            if(distanciaEuclidiana(ultimo,todasLinhas.get(i).primeiro) <= tamanhoDistancia || distanciaEuclidiana(ultimo,todasLinhas.get(i).ultimo) <= tamanhoDistancia && !retasEncontrada(i,retas,retasPrimeiro,retasUltimo)) {
                 retasPrimeiro.add(i);
             }
 
-            if(distanciaEuclidiana(primeiro1,TodasLinhas.get(i).primeiro) <= tamanho || distanciaEuclidiana(primeiro1,TodasLinhas.get(i).ultimo) <= tamanho && !retasEncontrada(i,retas,retasPrimeiro,retasUltimo)) {
+            if(distanciaEuclidiana(primeiro1,todasLinhas.get(i).primeiro) <= tamanhoDistancia || distanciaEuclidiana(primeiro1,todasLinhas.get(i).ultimo) <= tamanhoDistancia && !retasEncontrada(i,retas,retasPrimeiro,retasUltimo)) {
                 retasUltimo.add(i);
             }
-            if(distanciaEuclidiana(ultimo1,TodasLinhas.get(i).primeiro) <= tamanho || distanciaEuclidiana(ultimo1,TodasLinhas.get(i).ultimo) <= tamanho && !retasEncontrada(i,retas,retasPrimeiro,retasUltimo)) {
+            if(distanciaEuclidiana(ultimo1,todasLinhas.get(i).primeiro) <= tamanhoDistancia || distanciaEuclidiana(ultimo1,todasLinhas.get(i).ultimo) <= tamanhoDistancia && !retasEncontrada(i,retas,retasPrimeiro,retasUltimo)) {
                 retasUltimo.add(i);
             }
 
@@ -365,25 +410,25 @@ public class BoxDetectionFragment extends Fragment{
 
         for(int i = 0; i < retasPrimeiro.size(); i++) {
             for(int j = 0; j < retasUltimo.size(); j++) {
-                if(distanciaEuclidiana(TodasLinhas.get(retasPrimeiro.get(i)).primeiro,TodasLinhas.get(retasUltimo.get(j)).primeiro) <= tamanho) {
+                if(distanciaEuclidiana(todasLinhas.get(retasPrimeiro.get(i)).primeiro,todasLinhas.get(retasUltimo.get(j)).primeiro) <= tamanhoDistancia) {
                     retas[4] = retasPrimeiro.get(i);
                     retas[5] = retasUltimo.get(j);
                     resp = true;
                     break;
                 }
-                if(distanciaEuclidiana(TodasLinhas.get(retasPrimeiro.get(i)).primeiro,TodasLinhas.get(retasUltimo.get(j)).ultimo) <= tamanho) {
+                if(distanciaEuclidiana(todasLinhas.get(retasPrimeiro.get(i)).primeiro,todasLinhas.get(retasUltimo.get(j)).ultimo) <= tamanhoDistancia) {
                     retas[4] = retasPrimeiro.get(i);
                     retas[5] = retasUltimo.get(j);
                     resp = true;
                     break;
                 }
-                if(distanciaEuclidiana(TodasLinhas.get(retasPrimeiro.get(i)).ultimo,TodasLinhas.get(retasUltimo.get(j)).primeiro) <= tamanho) {
+                if(distanciaEuclidiana(todasLinhas.get(retasPrimeiro.get(i)).ultimo,todasLinhas.get(retasUltimo.get(j)).primeiro) <= tamanhoDistancia) {
                     retas[4] = retasPrimeiro.get(i);
                     retas[5] = retasUltimo.get(j);
                     resp = true;
                     break;
                 }
-                if(distanciaEuclidiana(TodasLinhas.get(retasPrimeiro.get(i)).ultimo,TodasLinhas.get(retasUltimo.get(j)).ultimo) <= tamanho) {
+                if(distanciaEuclidiana(todasLinhas.get(retasPrimeiro.get(i)).ultimo,todasLinhas.get(retasUltimo.get(j)).ultimo) <= tamanhoDistancia) {
                     retas[4] = retasPrimeiro.get(i);
                     retas[5] = retasUltimo.get(j);
                     resp = true;
@@ -396,114 +441,120 @@ public class BoxDetectionFragment extends Fragment{
         }
         return resp;
     }
+    
+    
+/*===================================================================================================================*/
+/*===================================================================================================================*/
+/*===================================================================================================================*/
 
+    //Comeco da Primeira Heuristica
 
-    /*private boolean verificarSeECaixa(int [] vetorRetasParalelas, int [] primeirasRetas, int [] segundasRetas, int [] terceirasRetas) {
-        boolean resp = false;
-        ArrayList<Point> pontos = new ArrayList<Point>();
-        ArrayList<Integer> passoTodos = new ArrayList<Integer>();
-        int tmp = 0;
-        for(int i = 0; i < 3; i++){
-            if(!acharPontos(linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).primeiro,pontos,passoTodos)) {
-                pontos.add(linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).primeiro);
-                passoTodos.add(tmp);
-
-            }
-            if(!acharPontos(linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).ultimo,pontos,passoTodos)) {
-                pontos.add(linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).ultimo);
-                passoTodos.add(tmp);
-            }
-            if(!acharPontos(linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]).primeiro,pontos,passoTodos)) {
-                pontos.add(linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]).primeiro);
-                passoTodos.add(tmp);
-            }
-            if(!acharPontos(linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]).ultimo,pontos,passoTodos)) {
-                pontos.add(linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]).ultimo);
-                passoTodos.add(tmp);
-            }
-            if(!acharPontos(linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).primeiro,pontos,passoTodos)) {
-                pontos.add(linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).primeiro);
-                passoTodos.add(tmp);
-            }
-            if(!acharPontos(linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).ultimo,pontos,passoTodos)) {
-                pontos.add(linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).ultimo);
-                passoTodos.add(tmp);
-            }
-        }
-        //System.out.println("Contador : " + pontos.size() + "True :" + passoTodos.size());
-        if(pontos.size() == 7 && allTrue(passoTodos)) { // Para testar, mudar esses valores.
-            resp = true; // Para testar comente isso <<.
-        }
-        return resp;
-    }*/
-
-
-    private void combinationTodasRetas(int n, int r, int x [],int next,int k) {
+    /**
+     * Primeira combinacao, para comecar a primeira heuristica.
+     * @param n tamanho da lista tipos de graus.
+     * @param r tamanho do grupo.
+     * @param x vetor auxiliar.
+     * @param next proxima posicao que a combinacao irar comecar.
+     * @param k verificador para ver se o grupo esta cheio.
+     */
+    private void combinacaoDeTodasRetas(int n, int r, int x [],int next,int k) {
         int i;
         if(k == r && flag != true) {
             //System.out.println("x 0 : " + x[0] );
             int size = linhasParalelas.get(x[0]).linhas.size();
             int [] tmp = new int [size];
-            combination1(size,3,tmp,0,0,x);
+            combinacao1(size,3,tmp,0,0,x);
         }else{
             for(i = next; i < n; i++) {
                 x[k] = i;
                 if(flag != true)
-                    combinationTodasRetas(n,r,x,i+1,k+1);
+                    combinacaoDeTodasRetas(n,r,x,i+1,k+1);
             }
         }
     }
-
-    private void combination1(int n, int r, int x [], int next, int k, int [] vetorRetasParalelas) {
+    /**
+     * Segunda combinacao, para comecar a primeira heuristica.
+     * @param n tamanho da lista da primeiras linhas.
+     * @param r tamanho do grupo.
+     * @param x vetor auxiliar.
+     * @param next proxima posicao que a combinacao irar comecar.
+     * @param k verificador para ver se o grupo esta cheio.
+     * @param vetorRetasParalelas e o vetor de posicoes encontrado pela ultima combinacao
+     */
+    private void combinacao1(int n, int r, int x [], int next, int k, int [] vetorRetasParalelas) {
         int i;
         if(k == r && flag != true) {
             //System.out.println("x 1 : " + x[1] );
             int size = linhasParalelas.get(vetorRetasParalelas[1]).linhas.size();
             int [] tmp = new int [size];
-            combination2(size,3,tmp,0,0,vetorRetasParalelas,x);
+            combinacao2(size,3,tmp,0,0,vetorRetasParalelas,x);
         }else{
             for(i = next; i < n; i++) {
                 x[k] = i;
                 if(flag != true)
-                    combination1(n,r,x,i+1,k+1,vetorRetasParalelas);
+                    combinacao1(n,r,x,i+1,k+1,vetorRetasParalelas);
             }
         }
     }
-
-    private void combination2(int n , int r, int x [] , int next, int k, int [] vetorRetasParalelas, int [] primeirasRetas) {
+    /**
+     * Terceira combinacao, para comecar a primeira heuristica.
+     * @param n tamanho da lista da segundas linhas.
+     * @param r tamanho do grupo.
+     * @param x vetor auxiliar.
+     * @param next proxima posicao que a combinacao irar comecar.
+     * @param k verificador para ver se o grupo esta cheio.
+     * @param vetorRetasParalelas e o vetor de posicoes de graus das linhas.
+     * @param primeirasRetas e o vetor de posicoes da primeiro tipo de grau das linhas.
+     */
+    private void combinacao2(int n , int r, int x [] , int next, int k, int [] vetorRetasParalelas, int [] primeirasRetas) {
         int i;
         if(k == r && flag != true) {
             //System.out.println("x 2 : " + x[2] );
             int size = linhasParalelas.get(vetorRetasParalelas[2]).linhas.size();
             int [] tmp = new int [size];
-            combination3(size,3,tmp,0,0,vetorRetasParalelas,primeirasRetas,x);
+            combinacao3(size,3,tmp,0,0,vetorRetasParalelas,primeirasRetas,x);
         }else{
             for(i = next; i < n; i++) {
                 x[k] = i;
                 if(flag != true)
-                    combination2(n,r,x,i+1,k+1,vetorRetasParalelas,primeirasRetas);
+                    combinacao2(n,r,x,i+1,k+1,vetorRetasParalelas,primeirasRetas);
             }
         }
     }
-
-    private void combination3(int n, int r, int x [], int next, int k, int [] vetorRetasParalelas, int [] primeirasRetas, int [] segundasRetas) {
+    /**
+     * Terceira combinacao, para comecar a primeira heuristica.
+     * @param n tamanho da lista da segundas linhas.
+     * @param r tamanho do grupo.
+     * @param x vetor auxiliar.
+     * @param next proxima posicao que a combinacao irar comecar.
+     * @param k verificador para ver se o grupo esta cheio.
+     * @param vetorRetasParalelas e o vetor de posicoes de graus das linhas.
+     * @param primeirasRetas e o vetor de posicoes do primeiro tipo de grau das linhas.
+     * @param segundasRetas e o vetor de posicoes do segunda tipo de grau das linhas.
+     */
+    private void combinacao3(int n, int r, int x [], int next, int k, int [] vetorRetasParalelas, int [] primeirasRetas, int [] segundasRetas) {
         int i;
         if(k == r && flag != true) {
-            findBoxes(vetorRetasParalelas,primeirasRetas,segundasRetas,x);
+            acharCaixaPrimeiraHeuristica(vetorRetasParalelas,primeirasRetas,segundasRetas,x);
         }else{
             for(i = next; i < n; i++) {
                 x[k] = i;
                 if(flag != true)
-                    combination3(n,r,x,i+1,k+1,vetorRetasParalelas,primeirasRetas,segundasRetas);
+                    combinacao3(n,r,x,i+1,k+1,vetorRetasParalelas,primeirasRetas,segundasRetas);
             }
         }
     }
 
-    private void findBoxes(int [] vetorRetasParalelas, int [] primeirasRetas, int [] segundasRetas, int [] terceirasRetas) {
+    /**
+     * Metodo para achar as caixas, usando a primeira heuristica.
+     * @param vetorRetasParalelas Vetor de graus encontrados.
+     * @param primeirasRetas Vetor de posicoes das retas do primeiro grau.
+     * @param segundasRetas Vetor de posicoes das retas do segundo grau.
+     * @param terceirasRetas Vetor de posicoes das retas do terceiro grau.
+     */
+    private void acharCaixaPrimeiraHeuristica(int [] vetorRetasParalelas, int [] primeirasRetas, int [] segundasRetas, int [] terceirasRetas) {
         ArrayList<Point> pontos = new ArrayList<Point>();
-        //ArrayList<Boolean> passoTodos = new ArrayList<Boolean>();
         ArrayList<Integer> passoTodos = new ArrayList<Integer>();
-        //boolean tmp = false;
         int tmp = 0;
         for(int i = 0; i < 3; i++){
             if(!acharPontos(linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).primeiro,pontos,passoTodos)) {
@@ -533,7 +584,7 @@ public class BoxDetectionFragment extends Fragment{
             }
         }
         //System.out.println("Contador : " + pontos.size() + "True :" + passoTodos.size());
-        if(pontos.size() == 7 && allTrue(passoTodos)) { // Para testar, mudar esses valores.
+        if(pontos.size() == 7 && verificarVetor(passoTodos)) { // Para testar, mudar esses valores.
             flag = true; // Para testar comente isso <<.
 
             for(int i = 0; i < 3; i++){
@@ -553,7 +604,12 @@ public class BoxDetectionFragment extends Fragment{
         //System.out.println("Terminou aqui");
     }
 
-    private boolean allTrue(ArrayList<Integer> passoTodos) {
+    /**
+     * Verifica se as vertices foram encontradas corretamentes.
+     * @param passoTodos Vertices encontradas.
+     * @return boolean true se as vertices foram certas, e false se nao e vertices corretas.
+     */
+    private boolean verificarVetor(ArrayList<Integer> passoTodos) {
         int contador = 0;
         for(int i = 0; i < passoTodos.size();i++) {
 
@@ -578,9 +634,16 @@ public class BoxDetectionFragment extends Fragment{
         return true;
     }
 
+    /**
+     * Metodo para verificar se a vertice ja foi encontrada.
+     * @param ponto Ponto para verificar.
+     * @param points Pontos ja encontrados.
+     * @param tmp verificar se as verticies ja foram revidicadas ou nao. Se sim adiciona +1 na posicao da vertice.
+     * @return boolean vertice ainda nao foi colocada volta true, se nao false.
+     */
     private boolean acharPontos(Point ponto, ArrayList<Point> points, ArrayList<Integer> tmp) {
         boolean resp = false;
-        double distancia = tamanho;
+        double distancia = tamanhoDistancia;
         int tmp1;
         for(int i = 0; i < points.size();i++) {
             if(distanciaEuclidiana(points.get(i),ponto) <= distancia) {
@@ -592,13 +655,24 @@ public class BoxDetectionFragment extends Fragment{
         return resp;
     }
 
-
+    /**
+     * Metodo para o calculo de distancia euclidiana.
+     * @param um Ponto um.
+     * @param dois Ponto dois.
+     * @return distancia encontrada.
+     */
     private double distanciaEuclidiana(Point um, Point dois) {
 
         double distancia = Math.sqrt(Math.pow(dois.x - um.x, 2) + Math.pow(dois.y - um.y, 2));
         return distancia;
     }
-    private ArrayList<LinhasParalelas> findGroups(ArrayList<Linhas> linhas,double diferencaCoeficiente) {
+
+    /**
+     * Metodo para separar as retas em 3 grupos de graus.
+     * @param linhas Todas as linhas encontrada pela transformada de Hough.
+     * @return ArrayList<LinhasParalelas> Vetor ja separando todas as retas pelos seus respectivos graus.
+     */
+    private ArrayList<LinhasParalelas> acharGrouposDeGraus(ArrayList<Linhas> linhas) {
 
         ArrayList<LinhasParalelas> todasLinhasParalelas = new ArrayList<LinhasParalelas>();
         LinhasParalelas linhasParalelas;
@@ -610,34 +684,17 @@ public class BoxDetectionFragment extends Fragment{
             linhas.remove(i);
             i--;
             for(int j = i+1;  j < linhas.size();j++){
-                /*double coeficienteAngular1 = linhasParalelas.linhas.get(0).a;
-                double coeficienteAngular2 = linhas.get(j).a;
-                if((coeficienteAngular1 - diferencaCoeficiente) <= coeficienteAngular2 && (coeficienteAngular1 + diferencaCoeficiente) >= coeficienteAngular2 ) {
-                    linhasParalelas.linhas.add(linhas.get(j));
-                    linhas.remove(j);
-                    j--;
-                }*/
                 if(linhasParalelas.linhas.get(0).tipoReta == linhas.get(j).tipoReta) {
-                    //cont++;
-                    //System.out.println("Entro aqui");
-                    /*if (saoIguais(linhasParalelas.linhas.get(0), linhas.get(j))) {
-                        //System.out.println("Entro aqui1");
-                        linhas.remove(j);
-                        j--;
-                    } else {*/
-                        //System.out.println("Entro aqui2");
                     linhasParalelas.linhas.add(linhas.get(j));
                     linhas.remove(j);
                     j--;
-                    //}
-
                 }
             }
             for(int j = 0; j < linhasParalelas.linhas.size(); j++) {
                 Linhas linha1 = linhasParalelas.linhas.get(j);
                 for(int z = j+1; z < linhasParalelas.linhas.size();z++ ){
                     Linhas linha2 = linhasParalelas.linhas.get(z);
-                    if (saoIguais(linha1, linha2)) {
+                    if (verificarRetasIguais(linha1, linha2)) {
                         //System.out.println("Entro aqui1");
                         linhasParalelas.linhas.remove(z);
                         z--;
@@ -653,29 +710,25 @@ public class BoxDetectionFragment extends Fragment{
                     }
                 });
                 todasLinhasParalelas.add(linhasParalelas);
-                //System.out.println("Valor dentro: "  + ": " + linhasParalelas.linhas.get(0).tipoReta + " a: " + linhasParalelas.linhas.get(0).a );
-                /*for(int p = 0; p < linhasParalelas.linhas.size();p++){
-
-                    //Imgproc.line(cdstP,linhasParalelas.linhas.get(p).primeiro, linhasParalelas.linhas.get(p).ultimo, new Scalar(0, 255, 0), 1, Imgproc.LINE_AA, 0);
-                }*/
-            }/*else{
-                for(int p = 0; p < linhasParalelas.linhas.size();p++){
-                    System.out.println("Valor fora: "  + ": " + linhasParalelas.linhas.get(0).tipoReta + " a: " + linhasParalelas.linhas.get(0).a);
-                    //Imgproc.line(cdstP,linhasParalelas.linhas.get(p).primeiro, linhasParalelas.linhas.get(p).ultimo, new Scalar(0, 255, 0), 1, Imgproc.LINE_AA, 0);
-                }
-            }*/
+            }
         }
         System.out.println("Contador de retas: " + cont );
         return todasLinhasParalelas;
     }
 
-    private boolean saoIguais(Linhas linhas1, Linhas linhas2) {
+    /**
+     * Metodo para verificar se as retas sao iguais.
+     * @param linhas1 Linha um.
+     * @param linhas2 Linha dois.
+     * @return Voltar a resposta se sao iguais ou nao.
+     */
+    private boolean verificarRetasIguais(Linhas linhas1, Linhas linhas2) {
         double tmp1 = distanciaEuclidiana(linhas1.primeiro,linhas2.primeiro);
         double tmp2 = distanciaEuclidiana(linhas1.ultimo,linhas2.ultimo);
         double tmp3 = distanciaEuclidiana(linhas1.primeiro,linhas2.ultimo);
         double tmp4 = distanciaEuclidiana(linhas1.ultimo,linhas2.primeiro);
         //System.out.println("Distancia tmp1: " + tmp1 + " Distancia tmp2: " + tmp2 + " Distancia tmp3: " + tmp3 + " Distancia tmp4: " + tmp4);
-        if((tmp1 <= tamanho && tmp2 <= tamanho) || (tmp3 <= tamanho && tmp4 <= tamanho)) {
+        if((tmp1 <= tamanhoDistancia && tmp2 <= tamanhoDistancia) || (tmp3 <= tamanhoDistancia && tmp4 <= tamanhoDistancia)) {
             //System.out.println("Distancia tmp1: " + tmp1 + " Distancia tmp2: " + tmp2 + " Distancia tmp3: " + tmp3 + " Distancia tmp4: " + tmp4);
             //Imgproc.line(cdstP, linhas1.primeiro, linhas1.ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
             //Imgproc.line(cdstP, linhas2.primeiro, linhas2.ultimo, new Scalar(0, 255, 0), 1, Imgproc.LINE_AA, 0);
@@ -683,19 +736,6 @@ public class BoxDetectionFragment extends Fragment{
             return true;
         }
         return false;
-    }
-
-    private boolean tamanhoIgual(Linhas linhas1, Linhas linhas2) {
-
-        double tmp1 = distanciaEuclidiana(linhas1.primeiro,linhas1.ultimo);
-        double tmp2 = distanciaEuclidiana(linhas2.primeiro,linhas2.ultimo);
-        if(tmp1+20 >= tmp2 && tmp2 >= tmp1-20) {
-            System.out.println("Dentro Tamanho tmp1: " + tmp1 + " A: " + linhas1.a +  " Tamanho tmp2: " + tmp2 + " A: " + linhas2.a);
-            return true;
-        }else{
-            System.out.println("Tamanho tmp1: " + tmp1 + " A: " + linhas1.a + " Tamanho tmp2: " + tmp2 + " A: " + linhas2.a);
-            return false;
-        }
     }
 
     @Override
@@ -764,7 +804,7 @@ public class BoxDetectionFragment extends Fragment{
                 sharedPreferencesEditor.putInt("cannyStrong", cannyStrongSeekBar.getProgress());
                 sharedPreferencesEditor.commit();
                 detectEdges();
-                Toast.makeText(getActivity(), "New SharedPreferences stored!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getActivity(), "Novos valores foram definidos!!!", Toast.LENGTH_SHORT).show();
                 dialog.dismiss();
             }
         });
