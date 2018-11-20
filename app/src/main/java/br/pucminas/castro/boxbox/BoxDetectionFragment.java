@@ -44,7 +44,7 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
     Button prev, next;
     boolean flag;
     double tamanhoDistancia;
-    double tamanhoDistancia3;
+    //double tamanhoDistancia3;
     int timeLimit, index;
     Mat cdstP;
     ArrayList<LinhasParalelas> linhasParalelas;
@@ -161,7 +161,7 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
 
         tamanhoDistancia = ((size.height + size.width) / 100)*3; // Pegando o tamanhoDistancia limite para os calculos abaixo.
         double tamanhoDistancia2 = ((size.height + size.width) / 100)*1; // Pegando o tamanhoDistancia limite para o tamanhoDistancia de 2 linhas se encontrarem, para considerar uma linha so.
-        tamanhoDistancia3 =  ((size.height + size.width) / 100)*5;
+        //tamanhoDistancia3 =  ((size.height + size.width) / 100)*5;
         System.out.println(tamanhoDistancia);
         Mat edges = new Mat();//(rgba.size(), CvType.CV_8UC3);
 
@@ -185,7 +185,7 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
 
         // Utilizando a Transformada de Hough Probabilistica
         Mat linesP = new Mat(); // will hold the results of the detection
-        Imgproc.HoughLinesP(edges, linesP, 1, Math.PI/180, 50,tamanhoDistancia3,(int)tamanhoDistancia2); // Executando a Transformada
+        Imgproc.HoughLinesP(edges, linesP, 1, Math.PI/180, 50,tamanhoDistancia+10,(int)tamanhoDistancia2); // Executando a Transformada
         //Array de linhas encontradas pela t. hough
         ArrayList<Linhas> linhas = new ArrayList<Linhas>();
         Linhas linha;
@@ -769,7 +769,7 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
      */
     private boolean acharPontos(Point ponto, ArrayList<Point> points, ArrayList<Integer> tmp) {
         boolean resp = false;
-        double distancia = tamanhoDistancia3;
+        double distancia = tamanhoDistancia;
         int tmp1;
         for(int i = 0; i < points.size();i++) {
             if(distanciaEuclidiana(points.get(i),ponto) <= distancia) {
@@ -854,7 +854,7 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
         double tmp3 = distanciaEuclidiana(linhas1.primeiro,linhas2.ultimo);
         double tmp4 = distanciaEuclidiana(linhas1.ultimo,linhas2.primeiro);
         //System.out.println("Distancia tmp1: " + tmp1 + " Distancia tmp2: " + tmp2 + " Distancia tmp3: " + tmp3 + " Distancia tmp4: " + tmp4);
-        if((tmp1 <= tamanhoDistancia3 && tmp2 <= tamanhoDistancia3) || (tmp3 <= tamanhoDistancia3 && tmp4 <= tamanhoDistancia3)) {
+        if((tmp1 <= tamanhoDistancia && tmp2 <= tamanhoDistancia) || (tmp3 <= tamanhoDistancia  && tmp4 <= tamanhoDistancia)) {
             //System.out.println("Distancia tmp1: " + tmp1 + " Distancia tmp2: " + tmp2 + " Distancia tmp3: " + tmp3 + " Distancia tmp4: " + tmp4);
             //Imgproc.line(cdstP, linhas1.primeiro, linhas1.ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
             //Imgproc.line(cdstP, linhas2.primeiro, linhas2.ultimo, new Scalar(0, 255, 0), 1, Imgproc.LINE_AA, 0);
