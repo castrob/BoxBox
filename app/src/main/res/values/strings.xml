@@ -26,4 +26,8 @@
     <string name="cancel">Cancel</string>
     <string name="ok">Ok</string>
     <string name="user_settings">User Settings</string>
+    <string name="settings">Settings</string>
+    <string name="application_settings">Application Settings</string>
+    <string name="combination_heuristic">Combination Heuristic</string>
+    <string name="no_combination_heuristic">No Combination Heuristic</string>
 </resources>

@@ -98,6 +98,13 @@ public class MainActivity extends AppCompatActivity
                 fab.show();
                 gallery();
                 break;
+            case R.id.nav_settings:
+                fragment = new SettingsFragment();
+                ft = getSupportFragmentManager().beginTransaction();
+                ft.replace(R.id.content_main, fragment);
+                ft.commit();
+                fab.hide();
+                break;
         }
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);

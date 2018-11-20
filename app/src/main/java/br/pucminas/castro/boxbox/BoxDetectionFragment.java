@@ -96,6 +96,10 @@ public class BoxDetectionFragment extends Fragment{
         SharedPreferences sharedPreferences = getActivity().getSharedPreferences("BoxBoxPrefs", Context.MODE_PRIVATE);
         int cannySoft = sharedPreferences.getInt("cannySoft", 50);
         int cannyStrong = sharedPreferences.getInt("cannyStrong", 100);
+        boolean developerMode = sharedPreferences.getBoolean("developerMode", false);
+        boolean combinationHeuristic = sharedPreferences.getBoolean("combinationHeuristic", false);
+
+        System.out.println(developerMode  + " " + combinationHeuristic);
 
 
         Mat rgba = new Mat(); //Pegando a imagem.
@@ -124,11 +128,12 @@ public class BoxDetectionFragment extends Fragment{
         cdstP = new Mat(); //Criando uma nova imagem.
         cdstP = rgba.clone();//Pegando um clone da imagem original.
 
+        //TODO: Talvez aqui podemos setar as imagens originais como null para liberar memoria ?
 
-        // Now using Hough Probabilistic Line Transform.
-        // Probabilistic Line Transform.
+        // Utilizando a Transformada de Hough Probabilistica
         Mat linesP = new Mat(); // will hold the results of the detection
-        Imgproc.HoughLinesP(edges, linesP, 1, Math.PI/180, 50,tamanhoDistancia+10,(int)tamanhoDistancia2); // runs the actual detection
+        Imgproc.HoughLinesP(edges, linesP, 1, Math.PI/180, 50,tamanhoDistancia+10,(int)tamanhoDistancia2); // Executando a Transformada
+        //Array de linhas encontradas pela t. hough
         ArrayList<Linhas> linhas = new ArrayList<Linhas>();
         Linhas linha;
         // Draw the lines
@@ -152,6 +157,7 @@ public class BoxDetectionFragment extends Fragment{
             int[] x = new int[linhasParalelas.size()];
             flag = false;
             //TODO Fazer um if, para escolher qual opcao vai escolher.
+
             //Primeiro metodo para encontrar as caixas, usando 3 combinacoes.
             //combinacaoDeTodasRetas(linhasParalelas.size(), 3, x, 0, 0); Metodo com todas combinações, principal metodo para achar a caixa.
 
@@ -763,7 +769,7 @@ public class BoxDetectionFragment extends Fragment{
         final TextView cannyStrong = dialog.findViewById(R.id.actualCannyStrong);
 
         final SeekBar cannySoftSeekBar = dialog.findViewById(R.id.cannyLowBorders);
-        final SeekBar cannyStrongSeekBar = dialog.findViewById(R.id.cannyStrogBorders);
+        final SeekBar cannyStrongSeekBar = dialog.findViewById(R.id.cannyStrongBorders);
 
         cannySoftSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override

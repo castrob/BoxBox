@@ -63,7 +63,7 @@
                 android:textSize="12sp"/>
 
             <SeekBar
-                android:id="@+id/cannyStrogBorders"
+                android:id="@+id/cannyStrongBorders"
                 android:layout_width="match_parent"
                 android:max="250"
                 android:thumbTint="@color/colorAccent"
