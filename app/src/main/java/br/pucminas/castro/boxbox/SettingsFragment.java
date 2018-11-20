@@ -19,7 +19,6 @@ public class SettingsFragment extends Fragment {
 
 
     RadioButton combination, noCombination;
-    CheckBox developerMode;
     SeekBar cannySoft;
     SeekBar cannyStrong;
     TextView cannySoftText;
@@ -31,7 +30,6 @@ public class SettingsFragment extends Fragment {
         View v = inflater.inflate(R.layout.settings_fragment, container, false);
         combination = v.findViewById(R.id.combinationHeuristic);
         noCombination = v.findViewById(R.id.noCombinationHeuristic);
-        developerMode = v.findViewById(R.id.developerMode);
         cannySoft = v.findViewById(R.id.cannyLowBordersSettings);
         cannyStrong = v.findViewById(R.id.cannyStrongBordersSettings);
         cannySoftText = v.findViewById(R.id.actualCannyLowSettings);
@@ -41,10 +39,8 @@ public class SettingsFragment extends Fragment {
         SharedPreferences sharedPreferences = getActivity().getSharedPreferences("BoxBoxPrefs", Context.MODE_PRIVATE);
         int cannySoftPreviousPref = sharedPreferences.getInt("cannySoft", 50);
         int cannyStrongPreviousPref = sharedPreferences.getInt("cannyStrong", 100);
-        boolean devMode = sharedPreferences.getBoolean("developerMode", false);
         boolean combinationHeuristic = sharedPreferences.getBoolean("combinationHeuristic", false);
 
-        developerMode.setChecked(devMode);
         if(combinationHeuristic){
             combination.setChecked(true);
         }else{
@@ -102,9 +98,8 @@ public class SettingsFragment extends Fragment {
         SharedPreferences.Editor sharedPreferencesEditor = sharedPreferences.edit();
         sharedPreferencesEditor.putInt("cannySoft", cannySoft.getProgress());
         sharedPreferencesEditor.putInt("cannyStrong", cannyStrong.getProgress());
-        sharedPreferencesEditor.putBoolean("developerMode", developerMode.isChecked());
         sharedPreferencesEditor.putBoolean("combinationHeuristic", combination.isChecked());
         sharedPreferencesEditor.commit();
-        Toast.makeText(getActivity(), "Novos valores foram definidos!!!", Toast.LENGTH_SHORT).show();
+        Toast.makeText(getActivity(), "Novas configuracoes Armazenadas", Toast.LENGTH_SHORT).show();
     }
 }

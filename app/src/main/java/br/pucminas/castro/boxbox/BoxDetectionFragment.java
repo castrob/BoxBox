@@ -17,6 +17,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.RadioButton;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -78,6 +79,7 @@ public class BoxDetectionFragment extends Fragment{
                 doTheDialogThing();
             }
         });
+        fab.setImageDrawable(getResources().getDrawable(R.drawable.ic_settings));
         //Realizar o procedimento de detecção de bordas após o fragment ter carregado.
         try{
             detectEdges();
@@ -96,10 +98,7 @@ public class BoxDetectionFragment extends Fragment{
         SharedPreferences sharedPreferences = getActivity().getSharedPreferences("BoxBoxPrefs", Context.MODE_PRIVATE);
         int cannySoft = sharedPreferences.getInt("cannySoft", 50);
         int cannyStrong = sharedPreferences.getInt("cannyStrong", 100);
-        boolean developerMode = sharedPreferences.getBoolean("developerMode", false);
         boolean combinationHeuristic = sharedPreferences.getBoolean("combinationHeuristic", false);
-
-        System.out.println(developerMode  + " " + combinationHeuristic);
 
 
         Mat rgba = new Mat(); //Pegando a imagem.
@@ -159,31 +158,33 @@ public class BoxDetectionFragment extends Fragment{
             //TODO Fazer um if, para escolher qual opcao vai escolher.
 
             //Primeiro metodo para encontrar as caixas, usando 3 combinacoes.
-            //combinacaoDeTodasRetas(linhasParalelas.size(), 3, x, 0, 0); Metodo com todas combinações, principal metodo para achar a caixa.
+            if (combinationHeuristic)
+                combinacaoDeTodasRetas(linhasParalelas.size(), 3, x, 0, 0); // Metodo com todas combinações, principal metodo para achar a caixa.
+            else{
+                    //Segundo metodo para encontrar as caixas, usando uma heuristica.
+                    //Achar a posicao do tipo de reta = 2.
+                    for (int i = 0; i < linhasParalelas.size(); i++) {
+                        if (linhasParalelas.get(i).linhas.get(0).tipoReta == 2) {
+                            posicao = i;
+                        }
+                    }
 
-            //Segundo metodo para encontrar as caixas, usando uma heuristica.
-            //Achar a posicao do tipo de reta = 2.
-            for(int i = 0; i < linhasParalelas.size(); i++) {
-                if(linhasParalelas.get(i).linhas.get(0).tipoReta == 2) {
-                    posicao = i;
-                }
-            }
-
-            for(int i = 0; i < linhasParalelas.size(); i++) {
-                if (i != posicao) {
-                    for (int j = 0; j < linhasParalelas.get(i).linhas.size(); j++) {
-                        todasLinhas.add(linhasParalelas.get(i).linhas.get(j));
-                        System.out.println("Tipo de reta: " + linhasParalelas.get(i).linhas.get(j).tipoReta);
+                for (int i = 0; i < linhasParalelas.size(); i++) {
+                    if (i != posicao) {
+                        for (int j = 0; j < linhasParalelas.get(i).linhas.size(); j++) {
+                            todasLinhas.add(linhasParalelas.get(i).linhas.get(j));
+                            System.out.println("Tipo de reta: " + linhasParalelas.get(i).linhas.get(j).tipoReta);
+                        }
                     }
                 }
+                do {
+                    System.out.println("Entrou aqui no while");
+                    flag = false;
+                    segundaHeuristica(posicao);//Outro metodo para encontrar a caixa.
+                    timeLimit++;
+                }
+                while (timeLimit <= 10 && (linhasParalelas.get(posicao).linhas.size() >= 3 && todasLinhas.size() >= 6));
             }
-            do {
-                System.out.println("Entrou aqui no while");
-                flag = false;
-                segundaHeuristica(posicao);//Outro metodo para encontrar a caixa.
-                timeLimit++;
-            }while(timeLimit <= 10 && (linhasParalelas.get(posicao).linhas.size() >= 3 && todasLinhas.size() >= 6));
-
         }
 
         for(int i = 0; i < todasLinhas.size(); i++) {
@@ -764,12 +765,23 @@ public class BoxDetectionFragment extends Fragment{
         SharedPreferences sharedPreferences = getActivity().getSharedPreferences("BoxBoxPrefs", Context.MODE_PRIVATE);
         int cannySoftPreviousPref = sharedPreferences.getInt("cannySoft", 50);
         int cannyStrongPreviousPref = sharedPreferences.getInt("cannyStrong", 100);
+        boolean combinationHeuristic = sharedPreferences.getBoolean("combinationHeuristic", false);
+
+
 
         final TextView cannySoft = dialog.findViewById(R.id.actualCannyLow);
         final TextView cannyStrong = dialog.findViewById(R.id.actualCannyStrong);
 
         final SeekBar cannySoftSeekBar = dialog.findViewById(R.id.cannyLowBorders);
         final SeekBar cannyStrongSeekBar = dialog.findViewById(R.id.cannyStrongBorders);
+
+        final RadioButton combination = dialog.findViewById(R.id.combinationHeuristic);
+        final RadioButton noCombination = dialog.findViewById(R.id.noCombinationHeuristic);
+        if(combinationHeuristic){
+            combination.setChecked(true);
+        }else{
+            noCombination.setChecked(true);
+        }
 
         cannySoftSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
@@ -814,6 +826,7 @@ public class BoxDetectionFragment extends Fragment{
                 SharedPreferences.Editor sharedPreferencesEditor = sharedPreferences.edit();
                 sharedPreferencesEditor.putInt("cannySoft", cannySoftSeekBar.getProgress());
                 sharedPreferencesEditor.putInt("cannyStrong", cannyStrongSeekBar.getProgress());
+                sharedPreferencesEditor.putBoolean("combinationHeuristic", combination.isChecked());
                 sharedPreferencesEditor.commit();
                 detectEdges();
                 Toast.makeText(getActivity(), "Novos valores foram definidos!!!", Toast.LENGTH_SHORT).show();

@@ -21,7 +21,7 @@
                     android:title="@string/gallery" />
                 <item
                     android:id="@+id/nav_settings"
-                    android:icon="@drawable/ic_settings_fragment"
+                    android:icon="@drawable/ic_settings"
                     android:title="@string/settings"
                     />
             </menu>

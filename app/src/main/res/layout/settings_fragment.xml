@@ -130,13 +130,6 @@
                     android:layout_height="wrap_content" />
             </RadioGroup>
 
-            <CheckBox
-                android:id="@+id/developerMode"
-                android:layout_marginLeft="6dp"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:checked="false"
-                android:text="Developer Mode"/>
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>
