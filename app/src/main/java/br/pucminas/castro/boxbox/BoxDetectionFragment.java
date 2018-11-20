@@ -44,6 +44,7 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
     Button prev, next;
     boolean flag;
     double tamanhoDistancia;
+    double tamanhoDistancia3;
     int timeLimit, index;
     Mat cdstP;
     ArrayList<LinhasParalelas> linhasParalelas;
@@ -160,7 +161,7 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
 
         tamanhoDistancia = ((size.height + size.width) / 100)*3; // Pegando o tamanhoDistancia limite para os calculos abaixo.
         double tamanhoDistancia2 = ((size.height + size.width) / 100)*1; // Pegando o tamanhoDistancia limite para o tamanhoDistancia de 2 linhas se encontrarem, para considerar uma linha so.
-
+        tamanhoDistancia3 =  ((size.height + size.width) / 100)*5;
         System.out.println(tamanhoDistancia);
         Mat edges = new Mat();//(rgba.size(), CvType.CV_8UC3);
 
@@ -184,7 +185,7 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
 
         // Utilizando a Transformada de Hough Probabilistica
         Mat linesP = new Mat(); // will hold the results of the detection
-        Imgproc.HoughLinesP(edges, linesP, 1, Math.PI/180, 50,tamanhoDistancia+10,(int)tamanhoDistancia2); // Executando a Transformada
+        Imgproc.HoughLinesP(edges, linesP, 1, Math.PI/180, 50,tamanhoDistancia3,(int)tamanhoDistancia2); // Executando a Transformada
         //Array de linhas encontradas pela t. hough
         ArrayList<Linhas> linhas = new ArrayList<Linhas>();
         Linhas linha;
@@ -215,6 +216,7 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
                     
                     System.out.println("Entro aqui no while 1");
                     tamanhoInicial = pegarTamanho1();
+                    System.out.println("Tamanho:" + tamanhoInicial);
                     flag = false;
                     combinacaoDeTodasRetas(linhasParalelas.size(), 3, x, 0, 0); // Metodo com todas combinações, principal metodo para achar a caixa.
                     tamanhoFinal = pegarTamanho1();
@@ -258,25 +260,25 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
         showFoundBoxOnScreen(0);
     }
 
+    /**
+     * Pegar tamanho do vetor para primeira heuristica
+     * @return
+     */
     private int pegarTamanho1() {
         int resp = 0;
         for(int i = 0; i < linhasParalelas.size(); i++) {
-            for(int j = 0; j < linhasParalelas.get(i).linhas.size(); j++) {
-                resp++;
-            }
+            resp = resp + linhasParalelas.get(i).linhas.size();
         }
         return resp;
     }
 
+    /**
+     * Pegar tamanho do vetor para segunda heuristica
+     * @param posicao posicao do vetor de linha paralelas
+     * @return
+     */
     private int pegarTamanho2(int posicao) {
-        int resp = 0;
-        for(int i = 0; i < linhasParalelas.get(posicao).linhas.size(); i++) {
-            resp++;
-        }
-        for(int i = 0; i < todasLinhas.size(); i++) {
-            resp++;
-        }
-        return resp;
+        return linhasParalelas.get(posicao).linhas.size() + todasLinhas.size();
     }
 
     /**
@@ -767,7 +769,7 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
      */
     private boolean acharPontos(Point ponto, ArrayList<Point> points, ArrayList<Integer> tmp) {
         boolean resp = false;
-        double distancia = tamanhoDistancia;
+        double distancia = tamanhoDistancia3;
         int tmp1;
         for(int i = 0; i < points.size();i++) {
             if(distanciaEuclidiana(points.get(i),ponto) <= distancia) {
@@ -852,7 +854,7 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
         double tmp3 = distanciaEuclidiana(linhas1.primeiro,linhas2.ultimo);
         double tmp4 = distanciaEuclidiana(linhas1.ultimo,linhas2.primeiro);
         //System.out.println("Distancia tmp1: " + tmp1 + " Distancia tmp2: " + tmp2 + " Distancia tmp3: " + tmp3 + " Distancia tmp4: " + tmp4);
-        if((tmp1 <= tamanhoDistancia && tmp2 <= tamanhoDistancia) || (tmp3 <= tamanhoDistancia && tmp4 <= tamanhoDistancia)) {
+        if((tmp1 <= tamanhoDistancia3 && tmp2 <= tamanhoDistancia3) || (tmp3 <= tamanhoDistancia3 && tmp4 <= tamanhoDistancia3)) {
             //System.out.println("Distancia tmp1: " + tmp1 + " Distancia tmp2: " + tmp2 + " Distancia tmp3: " + tmp3 + " Distancia tmp4: " + tmp4);
             //Imgproc.line(cdstP, linhas1.primeiro, linhas1.ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
             //Imgproc.line(cdstP, linhas2.primeiro, linhas2.ultimo, new Scalar(0, 255, 0), 1, Imgproc.LINE_AA, 0);
