@@ -201,7 +201,7 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
         timeLimit = 0;
         todasCaixas = new ArrayList<Caixas>();
         linhasParalelas = acharGrouposDeGraus(linhas); // Calcular os grupos de retas, se é 2 ou 1 ou 0.
-
+        int tamanhoInicial,tamanhoFinal;
         int posicao = 0;
         todasLinhas = new ArrayList<Linhas>(); // Colocar todos as retas que nao sao do tipo 2.
         if(linhasParalelas.size() >= 3) { // Verificar se achou os 3 grupos.
@@ -210,7 +210,16 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
             flag = false;
             //Primeiro metodo para encontrar as caixas, usando 3 combinacoes.
             if (combinationHeuristic)
-                combinacaoDeTodasRetas(linhasParalelas.size(), 3, x, 0, 0); // Metodo com todas combinações, principal metodo para achar a caixa.
+
+                do{
+                    
+                    System.out.println("Entro aqui no while 1");
+                    tamanhoInicial = pegarTamanho1();
+                    flag = false;
+                    combinacaoDeTodasRetas(linhasParalelas.size(), 3, x, 0, 0); // Metodo com todas combinações, principal metodo para achar a caixa.
+                    tamanhoFinal = pegarTamanho1();
+                }while(tamanhoInicial != tamanhoFinal && linhasParalelas.get(0).linhas.size() >= 3 && linhasParalelas.get(1).linhas.size() >= 3 && linhasParalelas.get(2).linhas.size() >= 3);
+
             else{
                 //Segundo metodo para encontrar as caixas, usando uma heuristica.
                 //Achar a posicao do tipo de reta = 2.
@@ -229,12 +238,13 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
                     }
                 }
                 do {
-                    System.out.println("Entrou aqui no while");
+                    System.out.println("Entrou aqui no while 2");
                     flag = false;
+                    tamanhoInicial = pegarTamanho2(posicao);
                     segundaHeuristica(posicao);//Outro metodo para encontrar a caixa.
-                    timeLimit++;
+                    tamanhoFinal = pegarTamanho2(posicao);
                 }
-                while (timeLimit <= 10 && (linhasParalelas.get(posicao).linhas.size() >= 3 && todasLinhas.size() >= 6));
+                while ( tamanhoInicial != tamanhoFinal && (linhasParalelas.get(posicao).linhas.size() >= 3 && todasLinhas.size() >= 6));
             }
         }
 
@@ -248,6 +258,37 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
         showFoundBoxOnScreen(0);
     }
 
+    private int pegarTamanho1() {
+        int resp = 0;
+        for(int i = 0; i < linhasParalelas.size(); i++) {
+            for(int j = 0; j < linhasParalelas.get(i).linhas.size(); j++) {
+                resp++;
+            }
+        }
+        return resp;
+    }
+
+    private int pegarTamanho2(int posicao) {
+        int resp = 0;
+        for(int i = 0; i < linhasParalelas.get(posicao).linhas.size(); i++) {
+            resp++;
+        }
+        for(int i = 0; i < todasLinhas.size(); i++) {
+            resp++;
+        }
+        return resp;
+    }
+
+    /**
+     * Metodo para printar as caixas com as arestas vermelhas de largura 3
+     * @param caixa Caixa a ser printada
+     */
+    private void printarCaixa(Caixas caixa) {
+        int largura = 3;
+        for(int i = 0; i < caixa.linhas.size(); i++) {
+            Imgproc.line(cdstP, caixa.linhas.get(i).primeiro, caixa.linhas.get(i).ultimo, new Scalar(255, 0, 0), largura, Imgproc.LINE_AA, 0);
+        }
+    }
 
     /**
      * Metodo para comecar a segunda heuristica.
@@ -658,6 +699,27 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
             for(int i = 0; i < 3; i++){
                 Imgproc.line(cdstP, linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).primeiro, linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).ultimo, new Scalar(255, 0, 0), 3, Imgproc.LINE_AA, 0);
             }
+
+            Caixas caixa = new Caixas();
+            //Retirando as retas na lista de 90 graus
+            for(int i = 2; i >= 0; i--) {
+                //System.out.println("90: " + x[i]);
+                caixa.linhas.add(linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]));
+                linhasParalelas.get(vetorRetasParalelas[0]).linhas.remove(primeirasRetas[i]);
+            }
+            for(int i = 2; i >= 0; i--) {
+                //System.out.println("90: " + x[i]);
+                caixa.linhas.add(linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]));
+                linhasParalelas.get(vetorRetasParalelas[1]).linhas.remove(segundasRetas[i]);
+            }
+            //Retirando as retas na lista das retas restantes
+            for(int i = 2; i>= 0; i--) {
+                //System.out.println("90: " + x[i]);
+                caixa.linhas.add(linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]));
+                linhasParalelas.get(vetorRetasParalelas[2]).linhas.remove(terceirasRetas[i]);
+            }
+            //Adicionando a caixa no vetor de caixas.
+            todasCaixas.add(caixa);
         }
         //System.out.println("Começou aqui");
         /*for(int i = 0; i < 7; i++){
