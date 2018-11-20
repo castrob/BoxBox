@@ -1,11 +1,11 @@
 package br.pucminas.castro.boxbox;
 
+import android.app.Dialog;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentTransaction;
 import android.view.View;
@@ -17,6 +17,9 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.Button;
+import android.widget.SeekBar;
+import android.widget.TextView;
 
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
@@ -29,7 +32,7 @@ public class MainActivity extends AppCompatActivity
 
     Fragment fragment;
     FragmentTransaction ft;
-    FloatingActionButton fab_camera, fab_gallery;
+    FloatingActionButton fab;
     int PICK_IMAGE = 100;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,8 +41,7 @@ public class MainActivity extends AppCompatActivity
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        fab_camera = (FloatingActionButton) findViewById(R.id.fab_camera);
-        fab_gallery = (FloatingActionButton) findViewById(R.id.fab_gallery);
+        fab = (FloatingActionButton) findViewById(R.id.fab);
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
@@ -53,8 +55,7 @@ public class MainActivity extends AppCompatActivity
         ft = getSupportFragmentManager().beginTransaction();
         ft.add(R.id.content_main, new HomeFragment(), "Inicio");
         ft.commit();
-        fab_camera.hide();
-        fab_gallery.hide();
+        fab.hide();
     }
 
     @Override
@@ -63,10 +64,13 @@ public class MainActivity extends AppCompatActivity
         if (drawer.isDrawerOpen(GravityCompat.START)) {
             drawer.closeDrawer(GravityCompat.START);
         } else {
-            super.onBackPressed();
+            fragment = new HomeFragment();
+            ft = getSupportFragmentManager().beginTransaction();
+            ft.replace(R.id.content_main, fragment);
+            ft.commit();
+            fab.hide();
         }
     }
-
     @SuppressWarnings("StatementWithEmptyBody")
     @Override
     public boolean onNavigationItemSelected(MenuItem item) {
@@ -77,25 +81,21 @@ public class MainActivity extends AppCompatActivity
                 ft = getSupportFragmentManager().beginTransaction();
                 ft.replace(R.id.content_main, fragment);
                 ft.commit();
-                fab_gallery.hide();
-                fab_camera.hide();
+                fab.hide();
                 break;
             case R.id.nav_camera:
+                fab.setImageDrawable(getResources().getDrawable(R.drawable.ic_fab_transform));
+                fab.setOnClickListener(null);
+                fab.show();
                 fragment = new CameraFragment();
                 ft = getSupportFragmentManager().beginTransaction();
                 ft.replace(R.id.content_main, fragment);
                 ft.commit();
-                fab_camera.show();
-                fab_gallery.hide();
                 break;
             case R.id.nav_gallery:
-//                fragment = new GalleryFragment();
-//                ft = getSupportFragmentManager().beginTransaction();
-//                ft.replace(R.id.content_main, fragment);
-//                ft.commit();
-//                fab.show();
-                fab_gallery.show();
-                fab_camera.hide();
+                fab.setImageDrawable(getResources().getDrawable(R.drawable.ic_fab_transform));
+                fab.setOnClickListener(null);
+                fab.show();
                 gallery();
                 break;
         }
@@ -103,10 +103,7 @@ public class MainActivity extends AppCompatActivity
         drawer.closeDrawer(GravityCompat.START);
         return true;
     }
-    public void gallery(){
-        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-        startActivityForResult(intent, PICK_IMAGE);
-    }
+
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
 
@@ -133,6 +130,10 @@ public class MainActivity extends AppCompatActivity
             e.printStackTrace();
         }
     }
+    public void gallery(){
+        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+        startActivityForResult(intent, PICK_IMAGE);
+    }
     public byte[] getBytes(InputStream inputStream) throws IOException {
         ByteArrayOutputStream byteBuffer = new ByteArrayOutputStream();
         int bufferSize = 1024;
@@ -144,5 +145,4 @@ public class MainActivity extends AppCompatActivity
         }
         return byteBuffer.toByteArray();
     }
-
 }

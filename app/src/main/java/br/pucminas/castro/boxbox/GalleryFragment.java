@@ -23,39 +23,52 @@ import static android.app.Activity.RESULT_OK;
 public class GalleryFragment extends Fragment{
     @Nullable
     ImageView imageView;
+    Bitmap bitmap;
+    FloatingActionButton fab;
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View v = inflater.inflate(R.layout.gallery_fragment, container, false);
+        //Pegando bundle com a Imagem em bytes[]
         Bundle bundle =  this.getArguments();
-        final byte[] imgBytes = bundle.getByteArray("IMAGE");
-        bundle.putByteArray("IMAGE", null);
-        Bitmap bitmap = BitmapFactory.decodeByteArray(imgBytes,0,imgBytes.length);
-        imageView = (ImageView) v.findViewById(R.id.image_ViewGallery);
-        imageView.setImageBitmap(bitmap);
-        bitmap = null;
-        FloatingActionButton fab_gallery = getActivity().findViewById(R.id.fab_gallery);
-        fab_gallery.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Fragment fragment = new BoxDetectionFragment();
-                Bundle b = new Bundle();
-                b.putByteArray("IMAGE", imgBytes);
-                fragment.setArguments(b);
-                FragmentTransaction ft = getActivity().getSupportFragmentManager().beginTransaction();
-                ft.replace(R.id.content_main, fragment);
-                ft.commit();
-            }
-        });
+        final byte[] imgBytes;
+        //instanciando elementos do fragment
+        imageView = v.findViewById(R.id.image_ViewGallery);
+        fab = getActivity().findViewById(R.id.fab);
 
+        if (bundle != null) {
+            imgBytes = bundle.getByteArray("IMAGE");
+            if (imgBytes != null) {
+                bitmap = BitmapFactory.decodeByteArray(imgBytes, 0, imgBytes.length);
+                //Clearing memory
+                bundle.clear();
+                bundle = null;
+                fab.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        Fragment fragment = new BoxDetectionFragment();
+                        Bundle b = new Bundle();
+                        b.putByteArray("IMAGE", imgBytes);
+                        fragment.setArguments(b);
+                        FragmentTransaction ft = getActivity().getSupportFragmentManager().beginTransaction();
+                        ft.replace(R.id.content_main, fragment);
+                        ft.commit();
+                    }
+                });
+            }
+        }
         return v;
     }
-
 
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         getActivity().setTitle(R.string.gallery);
+
+        if(imageView != null && bitmap != null){
+            imageView.setImageBitmap(bitmap);
+            bitmap = null;
+        }
     }
 }
