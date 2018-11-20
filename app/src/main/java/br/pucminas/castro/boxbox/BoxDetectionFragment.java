@@ -36,17 +36,28 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Arrays;
 
-public class BoxDetectionFragment extends Fragment{
+public class BoxDetectionFragment extends Fragment implements View.OnClickListener {
     //Variaveis globais.
     ImageView imageView;
     Bitmap bitmap;
-    ArrayList<LinhasParalelas> linhasParalelas;
+    FloatingActionButton fab;
+    Button prev, next;
     boolean flag;
-    Mat cdstP;
     double tamanhoDistancia;
+    int timeLimit, index;
+    Mat cdstP;
+    ArrayList<LinhasParalelas> linhasParalelas;
     ArrayList<Linhas> todasLinhas;
     ArrayList<Caixas> todasCaixas;
-    int timeLimit;
+
+
+    /**
+     * TODO: documentar
+     * @param inflater
+     * @param container
+     * @param savedInstanceState
+     * @return
+     */
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -60,26 +71,33 @@ public class BoxDetectionFragment extends Fragment{
             if (imgBytes != null) {
                 bitmap = BitmapFactory.decodeByteArray(imgBytes,0,imgBytes.length);
                 imageView.setImageBitmap(bitmap);
+
+                //Inflando objetos
+                fab = getActivity().findViewById(R.id.fab);
+                prev = v.findViewById(R.id.prev);
+                next = v.findViewById(R.id.next);
+                //configurando objetos e setando listeners para lidar com os clicks
+                prev.setOnClickListener(this);
+                next.setOnClickListener(this);
+                fab.setOnClickListener(null);
+                fab.setOnClickListener(this);
+                fab.setImageDrawable(getResources().getDrawable(R.drawable.ic_settings));
+                index = 0;
             }
         }
+
         return v;
     }
 
+    /**
+     * TODO Documentar
+     * @param view
+     * @param savedInstanceState
+     */
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         getActivity().setTitle("Box Detection");
-
-        FloatingActionButton fab = getActivity().findViewById(R.id.fab);
-        fab.setImageDrawable(getResources().getDrawable(R.drawable.ic_settings));
-        fab.setOnClickListener(null);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                doTheDialogThing();
-            }
-        });
-        fab.setImageDrawable(getResources().getDrawable(R.drawable.ic_settings));
         //Realizar o procedimento de detecção de bordas após o fragment ter carregado.
         try{
             detectEdges();
@@ -89,9 +107,44 @@ public class BoxDetectionFragment extends Fragment{
     }
 
     /**
-     * Metodo para Achar somente as linhas, usando canny e a transformada de houghPrababilistica.
-     *
+     * TODO: Documentar
+     * @param v
      */
+    @Override
+    public void onClick(View v) {
+        switch (v.getId()){
+            case R.id.prev:
+                index = index > 0 ? index-- : 0;
+                showFoundBoxOnScreen(index);
+                break;
+            case R.id.next:
+                index = (index+1 < todasCaixas.size()) ? index++ : index;
+                showFoundBoxOnScreen(index);
+                break;
+            case R.id.fab:
+                doTheDialogThing();
+                break;
+        }
+    }
+
+    /**
+     * TODO: Documentar
+     * @param index
+     */
+    private void showFoundBoxOnScreen(int index) {
+        Toast.makeText(getActivity(), index+"", Toast.LENGTH_SHORT).show();
+
+        //TODO: fazer aqui algoritmo generico para mostrar as caixas encontradas
+        Bitmap resultBitmap = Bitmap.createBitmap(cdstP.cols(), cdstP.rows(), Bitmap.Config.ARGB_8888);//Pega o bitmap do resultado.
+        Utils.matToBitmap(cdstP, resultBitmap);
+        imageView.setImageBitmap(resultBitmap);//Coloca a imagem.
+    }
+
+    /**
+     * Metodo para Achar somente as linhas, usando canny e a transformada de houghPrababilistica.
+     * TODO: Acho que podemos refatorar esse metodo, separar em metodos para primeiro tratar a imagem e depois rodar as heuristicas pois ele esta muito grande.
+     */
+
     private void detectEdges() {
 
         //Preparando para usar o canny.
@@ -155,19 +208,17 @@ public class BoxDetectionFragment extends Fragment{
 
             int[] x = new int[linhasParalelas.size()];
             flag = false;
-            //TODO Fazer um if, para escolher qual opcao vai escolher.
-
             //Primeiro metodo para encontrar as caixas, usando 3 combinacoes.
             if (combinationHeuristic)
                 combinacaoDeTodasRetas(linhasParalelas.size(), 3, x, 0, 0); // Metodo com todas combinações, principal metodo para achar a caixa.
             else{
-                    //Segundo metodo para encontrar as caixas, usando uma heuristica.
-                    //Achar a posicao do tipo de reta = 2.
-                    for (int i = 0; i < linhasParalelas.size(); i++) {
-                        if (linhasParalelas.get(i).linhas.get(0).tipoReta == 2) {
-                            posicao = i;
-                        }
+                //Segundo metodo para encontrar as caixas, usando uma heuristica.
+                //Achar a posicao do tipo de reta = 2.
+                for (int i = 0; i < linhasParalelas.size(); i++) {
+                    if (linhasParalelas.get(i).linhas.get(0).tipoReta == 2) {
+                        posicao = i;
                     }
+                }
 
                 for (int i = 0; i < linhasParalelas.size(); i++) {
                     if (i != posicao) {
@@ -187,16 +238,14 @@ public class BoxDetectionFragment extends Fragment{
             }
         }
 
-        for(int i = 0; i < todasLinhas.size(); i++) {
-            //Imgproc.line(cdstP, todasLinhas.get(i).primeiro,  todasLinhas.get(i).ultimo, new Scalar(0, 0, 255), 1, Imgproc.LINE_AA, 0);
+        Toast.makeText(getActivity(), "Found Boxes: " + todasCaixas.size(), Toast.LENGTH_SHORT).show();//Mensagem de Caixas encontradas.
+        if(todasCaixas.size() > 1){
+            prev.setVisibility(View.VISIBLE);
+            next.setVisibility(View.VISIBLE);
         }
-        for(int i = 0; i < linhasParalelas.get(posicao).linhas.size(); i++) {
-            //Imgproc.line(cdstP, linhasParalelas.get(posicao).linhas.get(i).primeiro, linhasParalelas.get(posicao).linhas.get(i).ultimo, new Scalar(0, 0, 255), 1, Imgproc.LINE_AA, 0);
-        }
-        Toast.makeText(getActivity(), "Boxes find: " + todasCaixas.size(), Toast.LENGTH_SHORT).show();//Mensagem de Caixas encontradas.
-        Bitmap resultBitmap = Bitmap.createBitmap(cdstP.cols(), cdstP.rows(), Bitmap.Config.ARGB_8888);//Pega o bitmap do resultado.
-        Utils.matToBitmap(cdstP, resultBitmap);
-        imageView.setImageBitmap(resultBitmap);//Coloca a imagem.
+
+        //chamando metodo para mostrar a primeira caixa encontrada pelo algoritmo
+        showFoundBoxOnScreen(0);
     }
 
 
@@ -751,23 +800,13 @@ public class BoxDetectionFragment extends Fragment{
         return false;
     }
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        doTheDialogThing();
-        return true;
-    }
-
+    /**
+     * Metodo para configuracao do dialog de preferencias de deteccao
+     */
     public void doTheDialogThing(){
         final Dialog dialog = new Dialog(getActivity());
         dialog.setContentView(R.layout.settings_dialog);
-        dialog.setTitle("User Settings");
-
-        SharedPreferences sharedPreferences = getActivity().getSharedPreferences("BoxBoxPrefs", Context.MODE_PRIVATE);
-        int cannySoftPreviousPref = sharedPreferences.getInt("cannySoft", 50);
-        int cannyStrongPreviousPref = sharedPreferences.getInt("cannyStrong", 100);
-        boolean combinationHeuristic = sharedPreferences.getBoolean("combinationHeuristic", false);
-
-
+        dialog.setTitle(getResources().getString(R.string.user_settings));
 
         final TextView cannySoft = dialog.findViewById(R.id.actualCannyLow);
         final TextView cannyStrong = dialog.findViewById(R.id.actualCannyStrong);
@@ -777,12 +816,21 @@ public class BoxDetectionFragment extends Fragment{
 
         final RadioButton combination = dialog.findViewById(R.id.combinationHeuristic);
         final RadioButton noCombination = dialog.findViewById(R.id.noCombinationHeuristic);
+
+        //pegando preferencias previamente armazenadas pelo usuario.
+        SharedPreferences sharedPreferences = getActivity().getSharedPreferences("BoxBoxPrefs", Context.MODE_PRIVATE);
+        int cannySoftPreviousPref = sharedPreferences.getInt("cannySoft", 50);
+        int cannyStrongPreviousPref = sharedPreferences.getInt("cannyStrong", 100);
+        boolean combinationHeuristic = sharedPreferences.getBoolean("combinationHeuristic", false);
+
+        //configurando os elementos do dialog com os valores iniciais.
         if(combinationHeuristic){
             combination.setChecked(true);
-        }else{
+        }else {
             noCombination.setChecked(true);
         }
 
+        //listeners para seekbar do canny
         cannySoftSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
@@ -818,18 +866,18 @@ public class BoxDetectionFragment extends Fragment{
 
         Button ok = dialog.findViewById(R.id.dialogOk);
         Button cancel = dialog.findViewById(R.id.dialogCancel);
-
         ok.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                //armazenando os valores alterados para as preferencias de usuario do aplicativo.
                 SharedPreferences sharedPreferences = getActivity().getSharedPreferences("BoxBoxPrefs", Context.MODE_PRIVATE);
                 SharedPreferences.Editor sharedPreferencesEditor = sharedPreferences.edit();
                 sharedPreferencesEditor.putInt("cannySoft", cannySoftSeekBar.getProgress());
                 sharedPreferencesEditor.putInt("cannyStrong", cannyStrongSeekBar.getProgress());
                 sharedPreferencesEditor.putBoolean("combinationHeuristic", combination.isChecked());
                 sharedPreferencesEditor.commit();
+                Toast.makeText(getActivity(), "Suas configurações foram atualizadas!", Toast.LENGTH_SHORT).show();
                 detectEdges();
-                Toast.makeText(getActivity(), "Novos valores foram definidos!!!", Toast.LENGTH_SHORT).show();
                 dialog.dismiss();
             }
         });
