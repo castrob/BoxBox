@@ -134,7 +134,7 @@ public class BoxDetectionFragment extends Fragment{
         // Draw the lines
         for (int x = 0; x < linesP.rows(); x++) {
             double[] l = linesP.get(x, 0);
-            //Imgproc.line(cdstP, new Point(l[0], l[1]), new Point(l[2], l[3]), new Scalar(0, 255, 0), 1, Imgproc.LINE_AA, 0); Todas as linhas encontradas
+            //Imgproc.line(cdstP, new Point(l[0], l[1]), new Point(l[2], l[3]), new Scalar(0, 255, 0), 1, Imgproc.LINE_AA, 0); //Todas as linhas encontradas
             linha = new Linhas(new Point(l[0], l[1]), new Point(l[2], l[3]));//Criar uma linha
             linhas.add(linha);//Botar a linha no vetor de linhas
         }
@@ -145,7 +145,8 @@ public class BoxDetectionFragment extends Fragment{
         todasCaixas = new ArrayList<Caixas>();
         linhasParalelas = acharGrouposDeGraus(linhas); // Calcular os grupos de retas, se é 2 ou 1 ou 0.
 
-
+        int posicao = 0;
+        todasLinhas = new ArrayList<Linhas>(); // Colocar todos as retas que nao sao do tipo 2.
         if(linhasParalelas.size() >= 3) { // Verificar se achou os 3 grupos.
 
             int[] x = new int[linhasParalelas.size()];
@@ -155,14 +156,13 @@ public class BoxDetectionFragment extends Fragment{
             //combinacaoDeTodasRetas(linhasParalelas.size(), 3, x, 0, 0); Metodo com todas combinações, principal metodo para achar a caixa.
 
             //Segundo metodo para encontrar as caixas, usando uma heuristica.
-            int posicao = 0;
             //Achar a posicao do tipo de reta = 2.
             for(int i = 0; i < linhasParalelas.size(); i++) {
                 if(linhasParalelas.get(i).linhas.get(0).tipoReta == 2) {
                     posicao = i;
                 }
             }
-            todasLinhas = new ArrayList<Linhas>(); // Colocar todos as retas que nao sao do tipo 2.
+
             for(int i = 0; i < linhasParalelas.size(); i++) {
                 if (i != posicao) {
                     for (int j = 0; j < linhasParalelas.get(i).linhas.size(); j++) {
@@ -172,14 +172,20 @@ public class BoxDetectionFragment extends Fragment{
                 }
             }
             do {
+                System.out.println("Entrou aqui no while");
                 flag = false;
                 segundaHeuristica(posicao);//Outro metodo para encontrar a caixa.
                 timeLimit++;
             }while(timeLimit <= 10 && (linhasParalelas.get(posicao).linhas.size() >= 3 && todasLinhas.size() >= 6));
 
         }
-        
-        
+
+        for(int i = 0; i < todasLinhas.size(); i++) {
+            //Imgproc.line(cdstP, todasLinhas.get(i).primeiro,  todasLinhas.get(i).ultimo, new Scalar(0, 0, 255), 1, Imgproc.LINE_AA, 0);
+        }
+        for(int i = 0; i < linhasParalelas.get(posicao).linhas.size(); i++) {
+            //Imgproc.line(cdstP, linhasParalelas.get(posicao).linhas.get(i).primeiro, linhasParalelas.get(posicao).linhas.get(i).ultimo, new Scalar(0, 0, 255), 1, Imgproc.LINE_AA, 0);
+        }
         Toast.makeText(getActivity(), "Boxes find: " + todasCaixas.size(), Toast.LENGTH_SHORT).show();//Mensagem de Caixas encontradas.
         Bitmap resultBitmap = Bitmap.createBitmap(cdstP.cols(), cdstP.rows(), Bitmap.Config.ARGB_8888);//Pega o bitmap do resultado.
         Utils.matToBitmap(cdstP, resultBitmap);
@@ -278,9 +284,9 @@ public class BoxDetectionFragment extends Fragment{
             Caixas caixa = new Caixas();
             //Retirando as retas na lista de 90 graus
             for(int i = 2; i >= 0; i--) {
-                System.out.println("90: " + i);
-                caixa.linhas.add(linhasParalelas.get(posicao).linhas.get(i));
-                linhasParalelas.get(posicao).linhas.remove(i);
+                System.out.println("90: " + x[i]);
+                caixa.linhas.add(linhasParalelas.get(posicao).linhas.get(x[i]));
+                linhasParalelas.get(posicao).linhas.remove(x[i]);
             }
             //Retirando as retas na lista das retas restantes
             for(int i = 5; i>= 0; i--) {
