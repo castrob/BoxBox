@@ -10,42 +10,56 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.Fragment;
-import android.util.Log;
 import android.view.LayoutInflater;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.RadioButton;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import org.opencv.android.Utils;
-import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.Point;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Arrays;
 
-public class BoxDetectionFragment extends Fragment{
+/**
+ * Classe BoxDetectionFragment para lidar com o Fragment da tela de Deteccao de Caixas
+ * Nesta classe esta presente toda a logica e heuristicas para a deteccao das caixas.
+ */
+
+public class BoxDetectionFragment extends Fragment implements View.OnClickListener {
     //Variaveis globais.
     ImageView imageView;
     Bitmap bitmap;
-    ArrayList<LinhasParalelas> linhasParalelas;
+    FloatingActionButton fab;
+    Button prev, next;
     boolean flag;
-    Mat cdstP;
     double tamanhoDistancia;
+    //double tamanhoDistancia3;
+    int timeLimit, index;
+    Mat cdstP, gray;
+    ArrayList<LinhasParalelas> linhasParalelas;
     ArrayList<Linhas> todasLinhas;
     ArrayList<Caixas> todasCaixas;
-    int timeLimit;
+
+
+    /**
+     * Metodo construtor do fragment android que contem toda a tela de deteccao da caixa.
+     * @param inflater Layout que ira inflar o xml com os objetos da tela
+     * @param container ViewGroup de elementos da tela.
+     * @param savedInstanceState Informacoes que podem ser salvas no ciclo de vida da tela.
+     * @return retorna uma View que e um objeto contendo todos os elementos do fragment.
+     */
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -59,43 +73,104 @@ public class BoxDetectionFragment extends Fragment{
             if (imgBytes != null) {
                 bitmap = BitmapFactory.decodeByteArray(imgBytes,0,imgBytes.length);
                 imageView.setImageBitmap(bitmap);
+
+                //Inflando objetos
+                fab = getActivity().findViewById(R.id.fab);
+                prev = v.findViewById(R.id.prev);
+                next = v.findViewById(R.id.next);
+                //configurando objetos e setando listeners para lidar com os clicks
+                prev.setOnClickListener(this);
+                next.setOnClickListener(this);
+                fab.setOnClickListener(null);
+                fab.setOnClickListener(this);
+                fab.setImageDrawable(getResources().getDrawable(R.drawable.ic_settings));
+                index = 0;
             }
         }
+
         return v;
     }
 
+    /**
+     * Este metodo faz parte do ciclo de vida do fragment, e e' chamado logo apos o construtor terminar,
+     * com ele temos o estado do fragment pronto para qualquer operacao ser executada no caso onde comecamos a deteccao
+     * da caixa.
+     * @param view objeto com todos os elementos do fragment.
+     * @param savedInstanceState nformacoes que podem ser salvas no ciclo de vida da tela.
+     */
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         getActivity().setTitle("Box Detection");
-
-        FloatingActionButton fab = getActivity().findViewById(R.id.fab);
-        fab.setImageDrawable(getResources().getDrawable(R.drawable.ic_settings));
-        fab.setOnClickListener(null);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                doTheDialogThing();
-            }
-        });
         //Realizar o procedimento de detecção de bordas após o fragment ter carregado.
         try{
-            detectEdges();
+            detectBoxes();
         }catch (Exception e){
             e.printStackTrace();
         }
     }
 
     /**
-     * Metodo para Achar somente as linhas, usando canny e a transformada de houghPrababilistica.
-     *
+     * Metodo listener para lidar com clicks dos botoes presentes no fragment como,
+     * o botao de configuracoes da deteccoes e os botoes de next e previous.
+     * @param v objeto do botao que recebeu o click.
      */
-    private void detectEdges() {
+    @Override
+    public void onClick(View v) {
+        switch (v.getId()){
+            case R.id.prev:
+                index--;
+                index = index < 0 ? -1 * index : index;
+                index = index % todasCaixas.size();
+                showFoundBoxOnScreen(index);
+                break;
+            case R.id.next:
+                index++;
+                index = index % todasCaixas.size();
+                showFoundBoxOnScreen(index);
+                break;
+            case R.id.fab:
+                doTheDialogThing();
+                break;
+        }
+    }
 
+    /**
+     * Metodo para apresentar as caixas que foram detectadas pelo algoritmo separadamente
+     * @param index indice do array de caixas a ser mostrado.
+     */
+    private void showFoundBoxOnScreen(int index) {
+        //limpando caixa detectada e pegando nova caixa
+        cdstP = gray.clone();
+        caixaToMat(todasCaixas.get(index));
+
+        Bitmap resultBitmap = Bitmap.createBitmap(cdstP.cols(), cdstP.rows(), Bitmap.Config.ARGB_8888);//Pega o bitmap do resultado.
+        Utils.matToBitmap(cdstP, resultBitmap);
+        imageView.setImageBitmap(resultBitmap);//Coloca a imagem.
+    }
+
+    /**
+     * Metodo para printar as caixas com as arestas vermelhas de largura 3
+     * @param caixa Caixa a ser printada
+     */
+    private void caixaToMat(Caixas caixa) {
+        int largura = 3;
+        for(int i = 0; i < caixa.linhas.size(); i++) {
+            Imgproc.line(cdstP, caixa.linhas.get(i).primeiro, caixa.linhas.get(i).ultimo, new Scalar(255, 0, 0), largura, Imgproc.LINE_AA, 0);
+        }
+    }
+
+    /**
+     * Metodo para Achar somente as linhas, usando canny e a transformada de hough Prababilistica.
+     * Este método também é responsavel pelo tratamento da imagem, como filtro bilateral, canny e transformada de hough.
+     */
+
+    private void detectBoxes() {
         //Preparando para usar o canny.
         SharedPreferences sharedPreferences = getActivity().getSharedPreferences("BoxBoxPrefs", Context.MODE_PRIVATE);
         int cannySoft = sharedPreferences.getInt("cannySoft", 50);
         int cannyStrong = sharedPreferences.getInt("cannyStrong", 100);
+        boolean combinationHeuristic = sharedPreferences.getBoolean("combinationHeuristic", false);
 
 
         Mat rgba = new Mat(); //Pegando a imagem.
@@ -104,92 +179,110 @@ public class BoxDetectionFragment extends Fragment{
 
         tamanhoDistancia = ((size.height + size.width) / 100)*3; // Pegando o tamanhoDistancia limite para os calculos abaixo.
         double tamanhoDistancia2 = ((size.height + size.width) / 100)*1; // Pegando o tamanhoDistancia limite para o tamanhoDistancia de 2 linhas se encontrarem, para considerar uma linha so.
-
-        System.out.println(tamanhoDistancia);
+        //tamanhoDistancia3 =  ((size.height + size.width) / 100)*5;
         Mat edges = new Mat();//(rgba.size(), CvType.CV_8UC3);
 
         Imgproc.cvtColor(rgba,rgba,Imgproc.COLOR_BGRA2BGR); // Passando a imagem para usar o filtro bilateral
-        Imgproc.bilateralFilter(rgba,edges,6,75,75); // Usando filtro bilateral
+        Imgproc.bilateralFilter(rgba,edges,6,75,75); // Usando filtro bilateral - SigmaColor e SigmaSpace (Vizinhanca de cores)
         Imgproc.cvtColor(rgba, edges, Imgproc.COLOR_RGB2GRAY, 4); //Passando para tons de cinza.
 
+        //Clonando a imagem em escala de cinza para ser utilizado na demonstracao da deteccao
+        gray = new Mat();
+        gray = edges.clone();
+        Imgproc.cvtColor(gray, gray, Imgproc.COLOR_GRAY2RGB); //voltando de escala de cinza para rgb para que a linha possa ser vermelha
 
-        Imgproc.Canny(edges, edges, cannySoft, cannyStrong,3,false);//Aplicando o Canny
-        Toast.makeText(getActivity(), "Running Canny with Values (" + cannySoft + ", " + cannyStrong + ") ", Toast.LENGTH_SHORT).show();//Mostrando os dados do canny.
-
-
+        Imgproc.Canny(edges, edges, cannySoft, cannyStrong,3,false);//Aplicando filtro de Canny
         Imgproc.dilate(edges, edges, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(2, 2)));//Dilatando as retas encontradas.
-        //Imgproc.erode(edges, edges, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3)));
 
         //Copy the image for hough transform
         cdstP = new Mat(); //Criando uma nova imagem.
         cdstP = rgba.clone();//Pegando um clone da imagem original.
 
-
-        // Now using Hough Probabilistic Line Transform.
-        // Probabilistic Line Transform.
-        Mat linesP = new Mat(); // will hold the results of the detection
-        Imgproc.HoughLinesP(edges, linesP, 1, Math.PI/180, 50,tamanhoDistancia+10,(int)tamanhoDistancia2); // runs the actual detection
+        // Utilizando a Transformada de Hough Probabilistica
+        Mat linesP = new Mat(); //Mat para o resultado da transformada de hough
+        Imgproc.HoughLinesP(edges, linesP, 1, Math.PI/180, 50,tamanhoDistancia+10,(int)tamanhoDistancia2); // Executando a Transformada
+        //Array de linhas encontradas pela t. hough
         ArrayList<Linhas> linhas = new ArrayList<Linhas>();
         Linhas linha;
-        // Draw the lines
         for (int x = 0; x < linesP.rows(); x++) {
             double[] l = linesP.get(x, 0);
-            //Imgproc.line(cdstP, new Point(l[0], l[1]), new Point(l[2], l[3]), new Scalar(0, 255, 0), 1, Imgproc.LINE_AA, 0); //Todas as linhas encontradas
             linha = new Linhas(new Point(l[0], l[1]), new Point(l[2], l[3]));//Criar uma linha
             linhas.add(linha);//Botar a linha no vetor de linhas
         }
 
-        //System.out.println("Size total:" + linhas.size() );
-
         timeLimit = 0;
         todasCaixas = new ArrayList<Caixas>();
         linhasParalelas = acharGrouposDeGraus(linhas); // Calcular os grupos de retas, se é 2 ou 1 ou 0.
-
+        int tamanhoInicial,tamanhoFinal;
         int posicao = 0;
         todasLinhas = new ArrayList<Linhas>(); // Colocar todos as retas que nao sao do tipo 2.
         if(linhasParalelas.size() >= 3) { // Verificar se achou os 3 grupos.
-
             int[] x = new int[linhasParalelas.size()];
             flag = false;
-            //TODO Fazer um if, para escolher qual opcao vai escolher.
             //Primeiro metodo para encontrar as caixas, usando 3 combinacoes.
-            //combinacaoDeTodasRetas(linhasParalelas.size(), 3, x, 0, 0); Metodo com todas combinações, principal metodo para achar a caixa.
-
-            //Segundo metodo para encontrar as caixas, usando uma heuristica.
-            //Achar a posicao do tipo de reta = 2.
-            for(int i = 0; i < linhasParalelas.size(); i++) {
-                if(linhasParalelas.get(i).linhas.get(0).tipoReta == 2) {
-                    posicao = i;
-                }
-            }
-
-            for(int i = 0; i < linhasParalelas.size(); i++) {
-                if (i != posicao) {
-                    for (int j = 0; j < linhasParalelas.get(i).linhas.size(); j++) {
-                        todasLinhas.add(linhasParalelas.get(i).linhas.get(j));
-                        System.out.println("Tipo de reta: " + linhasParalelas.get(i).linhas.get(j).tipoReta);
+            if (combinationHeuristic)
+                do{
+                    tamanhoInicial = tamanhoTotalDeLinhas();
+                    flag = false;
+                    combinacaoDeTodasRetas(linhasParalelas.size(), 3, x, 0, 0); // Metodo com todas combinações, principal metodo para achar a caixa.
+                    tamanhoFinal = tamanhoTotalDeLinhas();
+                }while(tamanhoInicial != tamanhoFinal && linhasParalelas.get(0).linhas.size() >= 3 && linhasParalelas.get(1).linhas.size() >= 3 && linhasParalelas.get(2).linhas.size() >= 3);
+            else{
+                //Segundo metodo para encontrar as caixas, usando uma heuristica.
+                //Achar a posicao do tipo de reta = 2.
+                for (int i = 0; i < linhasParalelas.size(); i++) {
+                    if (linhasParalelas.get(i).linhas.get(0).tipoReta == 2) {
+                        posicao = i;
                     }
                 }
+
+                for (int i = 0; i < linhasParalelas.size(); i++) {
+                    if (i != posicao) {
+                        for (int j = 0; j < linhasParalelas.get(i).linhas.size(); j++) {
+                            todasLinhas.add(linhasParalelas.get(i).linhas.get(j));
+                        }
+                    }
+                }
+                do {
+                    flag = false;
+                    tamanhoInicial = tamanhoTotalDeLinhasParalelas(posicao);
+                    segundaHeuristica(posicao);//Outro metodo para encontrar a caixa.
+                    tamanhoFinal = tamanhoTotalDeLinhasParalelas(posicao);
+                }
+                while ( tamanhoInicial != tamanhoFinal && (linhasParalelas.get(posicao).linhas.size() >= 3 && todasLinhas.size() >= 6));
             }
-            do {
-                System.out.println("Entrou aqui no while");
-                flag = false;
-                segundaHeuristica(posicao);//Outro metodo para encontrar a caixa.
-                timeLimit++;
-            }while(timeLimit <= 10 && (linhasParalelas.get(posicao).linhas.size() >= 3 && todasLinhas.size() >= 6));
-
         }
 
-        for(int i = 0; i < todasLinhas.size(); i++) {
-            //Imgproc.line(cdstP, todasLinhas.get(i).primeiro,  todasLinhas.get(i).ultimo, new Scalar(0, 0, 255), 1, Imgproc.LINE_AA, 0);
+        Toast.makeText(getActivity(), todasCaixas.size() + " Caixa(s) encontrada(s)", Toast.LENGTH_SHORT).show();//Mensagem de Caixas encontradas.
+        //caso possua mais de uma caixa, mostrar botoes de navegacao
+        if(todasCaixas.size() > 1){
+            prev.setVisibility(View.VISIBLE);
+            next.setVisibility(View.VISIBLE);
         }
-        for(int i = 0; i < linhasParalelas.get(posicao).linhas.size(); i++) {
-            //Imgproc.line(cdstP, linhasParalelas.get(posicao).linhas.get(i).primeiro, linhasParalelas.get(posicao).linhas.get(i).ultimo, new Scalar(0, 0, 255), 1, Imgproc.LINE_AA, 0);
+
+        //chamando metodo para mostrar a primeira caixa encontrada pelo algoritmo
+        showFoundBoxOnScreen(0);
+    }
+
+    /**
+     * Pegar tamanho do vetor para primeira heuristica
+     * @return
+     */
+    private int tamanhoTotalDeLinhas() {
+        int resp = 0;
+        for(int i = 0; i < linhasParalelas.size(); i++) {
+            resp = resp + linhasParalelas.get(i).linhas.size();
         }
-        Toast.makeText(getActivity(), "Boxes find: " + todasCaixas.size(), Toast.LENGTH_SHORT).show();//Mensagem de Caixas encontradas.
-        Bitmap resultBitmap = Bitmap.createBitmap(cdstP.cols(), cdstP.rows(), Bitmap.Config.ARGB_8888);//Pega o bitmap do resultado.
-        Utils.matToBitmap(cdstP, resultBitmap);
-        imageView.setImageBitmap(resultBitmap);//Coloca a imagem.
+        return resp;
+    }
+
+    /**
+     * Pegar tamanho do vetor para segunda heuristica
+     * @param posicao posicao do vetor de linha paralelas
+     * @return
+     */
+    private int tamanhoTotalDeLinhasParalelas(int posicao) {
+        return linhasParalelas.get(posicao).linhas.size() + todasLinhas.size();
     }
 
 
@@ -198,9 +291,6 @@ public class BoxDetectionFragment extends Fragment{
      * @param posicao e a posicao da lista que as retas de 90 graus se encontram.
      */
     private void segundaHeuristica(int posicao) {
-        for(int i = 0; i < linhasParalelas.get(posicao).linhas.size(); i++) {
-           System.out.println(linhasParalelas.get(posicao).linhas.get(i).primeiro.x + " TipoReta: " + linhasParalelas.get(posicao).linhas.get(i).tipoReta );
-        }
         int[] x = new int[linhasParalelas.get(posicao).linhas.size()];
         combinacaoDeNoventaGraus(linhasParalelas.get(posicao).linhas.size(),3,x,0,0,posicao);
     }
@@ -217,10 +307,7 @@ public class BoxDetectionFragment extends Fragment{
     private void combinacaoDeNoventaGraus(int n, int r, int x [], int next, int k,int posicao) {
         int i;
         if(k == r && flag != true) {
-            int tmp = acharCaixa(x,posicao);
-            if(tmp == 0) {
-                System.out.println("Achou a caixita");
-            }
+            int tmp = acharCaixa(x,posicao); // se tmp = 0 entao achou a caixa
         }else{
             for(i = next; i < n; i++) {
                 x[k] = i;
@@ -244,34 +331,34 @@ public class BoxDetectionFragment extends Fragment{
             retas[i] = -1;
         }
 
-        int tmp1 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[0]).primeiro,linhasParalelas.get(posicao).linhas.get(x[1]).primeiro,linhasParalelas.get(posicao).linhas.get(x[1]).ultimo,retas);//Busca a primeira Reta.
+        int teste1 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[0]).primeiro,linhasParalelas.get(posicao).linhas.get(x[1]).primeiro,linhasParalelas.get(posicao).linhas.get(x[1]).ultimo,retas);//Busca a primeira Reta.
 
-        int tmp2 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[0]).ultimo,linhasParalelas.get(posicao).linhas.get(x[1]).primeiro,linhasParalelas.get(posicao).linhas.get(x[1]).ultimo,retas); //Busca a segunda Reta.
+        int teste2 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[0]).ultimo,linhasParalelas.get(posicao).linhas.get(x[1]).primeiro,linhasParalelas.get(posicao).linhas.get(x[1]).ultimo,retas); //Busca a segunda Reta.
 
         //Vericiar se encontrou a reta.
-        if(tmp1 == -1 || tmp2 == -1) {
+        if(teste1 == -1 || teste2 == -1) {
             return 1;
         }
         //Colocando as retas no vetor de posicoes das retas.
-        retas[0] = tmp1;
-        retas[1] = tmp2;
+        retas[0] = teste1;
+        retas[1] = teste2;
 
-        tmp1 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[1]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).ultimo,retas);//Busca a terceira Reta.
+        teste1 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[1]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).ultimo,retas);//Busca a terceira Reta.
 
-        tmp2 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[1]).ultimo,linhasParalelas.get(posicao).linhas.get(x[2]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).ultimo,retas);//Busca a quarta Reta.
+        teste2 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[1]).ultimo,linhasParalelas.get(posicao).linhas.get(x[2]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).ultimo,retas);//Busca a quarta Reta.
 
-        if(tmp1 == -1 || tmp2 == -1) {
+        if(teste1 == -1 || teste2 == -1) {
             return 1;
         }
         //Colocando as retas no vetor de posicoes das retas.
-        retas[2] = tmp1;
-        retas[3] = tmp2;
+        retas[2] = teste1;
+        retas[3] = teste2;
+
         //Ultimo teste, verifica se acha as duas ultimas retas.
         boolean test = acharRetasFinais(linhasParalelas.get(posicao).linhas.get(x[0]).primeiro,linhasParalelas.get(posicao).linhas.get(x[0]).ultimo,linhasParalelas.get(posicao).linhas.get(x[2]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).ultimo,retas);
         //Caso o teste volto positivo, achou uma caixa.
         if(test) {
             flag = true;
-            //TODO tirar esses prints, e criar um metodo para printar as retas já encontradas.
             //Mostrar todas as retas da caixa.
             for(int i = 0; i < 3; i++){
                 Imgproc.line(cdstP, linhasParalelas.get(posicao).linhas.get(x[i]).primeiro, linhasParalelas.get(posicao).linhas.get(x[i]).ultimo, new Scalar(255, 0, 0), 3, Imgproc.LINE_AA, 0);
@@ -284,13 +371,11 @@ public class BoxDetectionFragment extends Fragment{
             Caixas caixa = new Caixas();
             //Retirando as retas na lista de 90 graus
             for(int i = 2; i >= 0; i--) {
-                System.out.println("90: " + x[i]);
                 caixa.linhas.add(linhasParalelas.get(posicao).linhas.get(x[i]));
                 linhasParalelas.get(posicao).linhas.remove(x[i]);
             }
             //Retirando as retas na lista das retas restantes
             for(int i = 5; i>= 0; i--) {
-                System.out.println("N90: " + retas[i]);
                 caixa.linhas.add(todasLinhas.get(retas[i]));
                 todasLinhas.remove((retas[i]));
             }
@@ -466,7 +551,6 @@ public class BoxDetectionFragment extends Fragment{
     private void combinacaoDeTodasRetas(int n, int r, int x [],int next,int k) {
         int i;
         if(k == r && flag != true) {
-            //System.out.println("x 0 : " + x[0] );
             int size = linhasParalelas.get(x[0]).linhas.size();
             int [] tmp = new int [size];
             combinacao1(size,3,tmp,0,0,x);
@@ -490,7 +574,6 @@ public class BoxDetectionFragment extends Fragment{
     private void combinacao1(int n, int r, int x [], int next, int k, int [] vetorRetasParalelas) {
         int i;
         if(k == r && flag != true) {
-            //System.out.println("x 1 : " + x[1] );
             int size = linhasParalelas.get(vetorRetasParalelas[1]).linhas.size();
             int [] tmp = new int [size];
             combinacao2(size,3,tmp,0,0,vetorRetasParalelas,x);
@@ -515,7 +598,6 @@ public class BoxDetectionFragment extends Fragment{
     private void combinacao2(int n , int r, int x [] , int next, int k, int [] vetorRetasParalelas, int [] primeirasRetas) {
         int i;
         if(k == r && flag != true) {
-            //System.out.println("x 2 : " + x[2] );
             int size = linhasParalelas.get(vetorRetasParalelas[2]).linhas.size();
             int [] tmp = new int [size];
             combinacao3(size,3,tmp,0,0,vetorRetasParalelas,primeirasRetas,x);
@@ -589,7 +671,6 @@ public class BoxDetectionFragment extends Fragment{
                 passoTodos.add(tmp);
             }
         }
-        //System.out.println("Contador : " + pontos.size() + "True :" + passoTodos.size());
         if(pontos.size() == 7 && verificarVetor(passoTodos)) { // Para testar, mudar esses valores.
             flag = true; // Para testar comente isso <<.
 
@@ -602,12 +683,25 @@ public class BoxDetectionFragment extends Fragment{
             for(int i = 0; i < 3; i++){
                 Imgproc.line(cdstP, linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).primeiro, linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).ultimo, new Scalar(255, 0, 0), 3, Imgproc.LINE_AA, 0);
             }
+
+            Caixas caixa = new Caixas();
+            //Retirando as retas na lista de 90 graus
+            for(int i = 2; i >= 0; i--) {
+                caixa.linhas.add(linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]));
+                linhasParalelas.get(vetorRetasParalelas[0]).linhas.remove(primeirasRetas[i]);
+            }
+            for(int i = 2; i >= 0; i--) {
+                caixa.linhas.add(linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]));
+                linhasParalelas.get(vetorRetasParalelas[1]).linhas.remove(segundasRetas[i]);
+            }
+            //Retirando as retas na lista das retas restantes
+            for(int i = 2; i>= 0; i--) {
+                caixa.linhas.add(linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]));
+                linhasParalelas.get(vetorRetasParalelas[2]).linhas.remove(terceirasRetas[i]);
+            }
+            //Adicionando a caixa no vetor de caixas.
+            todasCaixas.add(caixa);
         }
-        //System.out.println("Começou aqui");
-        /*for(int i = 0; i < 7; i++){
-            //System.out.println("Pontos: " + passoTodos.get(i));
-        }*/
-        //System.out.println("Terminou aqui");
     }
 
     /**
@@ -620,7 +714,6 @@ public class BoxDetectionFragment extends Fragment{
         for(int i = 0; i < passoTodos.size();i++) {
 
             if(passoTodos.get(i) == 1) {
-                //System.out.println("Numeros: "+passoTodos.get(i));
                 contador++;
             }
         }
@@ -630,7 +723,6 @@ public class BoxDetectionFragment extends Fragment{
         for(int i = 0; i < passoTodos.size();i++) {
 
             if(passoTodos.get(i) == 2) {
-                //System.out.println("Numeros: "+passoTodos.get(i));
                 contador++;
             }
         }
@@ -686,7 +778,6 @@ public class BoxDetectionFragment extends Fragment{
         for(int i = 0; i < linhas.size(); i++){
             linhasParalelas = new LinhasParalelas();
             linhasParalelas.linhas.add(linhas.get(i));
-            //System.out.println("A Teste: " + linhas.get(i).a);
             linhas.remove(i);
             i--;
             for(int j = i+1;  j < linhas.size();j++){
@@ -701,14 +792,12 @@ public class BoxDetectionFragment extends Fragment{
                 for(int z = j+1; z < linhasParalelas.linhas.size();z++ ){
                     Linhas linha2 = linhasParalelas.linhas.get(z);
                     if (verificarRetasIguais(linha1, linha2)) {
-                        //System.out.println("Entro aqui1");
                         linhasParalelas.linhas.remove(z);
                         z--;
                     }
                 }
             }
             if(linhasParalelas.linhas.size() >= 3) {
-                //System.out.println("Passo aqui");
                 Collections.sort(linhasParalelas.linhas, new Comparator<Linhas>() {
                     public int compare(Linhas v1, Linhas v2) {
                         double tmp = v1.primeiro.x - v2.primeiro.x;
@@ -718,7 +807,6 @@ public class BoxDetectionFragment extends Fragment{
                 todasLinhasParalelas.add(linhasParalelas);
             }
         }
-        System.out.println("Contador de retas: " + cont );
         return todasLinhasParalelas;
     }
 
@@ -733,38 +821,43 @@ public class BoxDetectionFragment extends Fragment{
         double tmp2 = distanciaEuclidiana(linhas1.ultimo,linhas2.ultimo);
         double tmp3 = distanciaEuclidiana(linhas1.primeiro,linhas2.ultimo);
         double tmp4 = distanciaEuclidiana(linhas1.ultimo,linhas2.primeiro);
-        //System.out.println("Distancia tmp1: " + tmp1 + " Distancia tmp2: " + tmp2 + " Distancia tmp3: " + tmp3 + " Distancia tmp4: " + tmp4);
-        if((tmp1 <= tamanhoDistancia && tmp2 <= tamanhoDistancia) || (tmp3 <= tamanhoDistancia && tmp4 <= tamanhoDistancia)) {
-            //System.out.println("Distancia tmp1: " + tmp1 + " Distancia tmp2: " + tmp2 + " Distancia tmp3: " + tmp3 + " Distancia tmp4: " + tmp4);
-            //Imgproc.line(cdstP, linhas1.primeiro, linhas1.ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
-            //Imgproc.line(cdstP, linhas2.primeiro, linhas2.ultimo, new Scalar(0, 255, 0), 1, Imgproc.LINE_AA, 0);
-            //System.out.println("Excluiu");
+        if((tmp1 <= tamanhoDistancia && tmp2 <= tamanhoDistancia) || (tmp3 <= tamanhoDistancia  && tmp4 <= tamanhoDistancia)) {
             return true;
         }
         return false;
     }
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        doTheDialogThing();
-        return true;
-    }
-
+    /**
+     * Metodo para configuracao do dialog de preferencias de deteccao
+     */
     public void doTheDialogThing(){
         final Dialog dialog = new Dialog(getActivity());
         dialog.setContentView(R.layout.settings_dialog);
-        dialog.setTitle("User Settings");
-
-        SharedPreferences sharedPreferences = getActivity().getSharedPreferences("BoxBoxPrefs", Context.MODE_PRIVATE);
-        int cannySoftPreviousPref = sharedPreferences.getInt("cannySoft", 50);
-        int cannyStrongPreviousPref = sharedPreferences.getInt("cannyStrong", 100);
+        dialog.setTitle(getResources().getString(R.string.user_settings));
 
         final TextView cannySoft = dialog.findViewById(R.id.actualCannyLow);
         final TextView cannyStrong = dialog.findViewById(R.id.actualCannyStrong);
 
         final SeekBar cannySoftSeekBar = dialog.findViewById(R.id.cannyLowBorders);
-        final SeekBar cannyStrongSeekBar = dialog.findViewById(R.id.cannyStrogBorders);
+        final SeekBar cannyStrongSeekBar = dialog.findViewById(R.id.cannyStrongBorders);
 
+        final RadioButton combination = dialog.findViewById(R.id.combinationHeuristic);
+        final RadioButton noCombination = dialog.findViewById(R.id.noCombinationHeuristic);
+
+        //pegando preferencias previamente armazenadas pelo usuario.
+        SharedPreferences sharedPreferences = getActivity().getSharedPreferences("BoxBoxPrefs", Context.MODE_PRIVATE);
+        int cannySoftPreviousPref = sharedPreferences.getInt("cannySoft", 50);
+        int cannyStrongPreviousPref = sharedPreferences.getInt("cannyStrong", 100);
+        boolean combinationHeuristic = sharedPreferences.getBoolean("combinationHeuristic", false);
+
+        //configurando os elementos do dialog com os valores iniciais.
+        if(combinationHeuristic){
+            combination.setChecked(true);
+        }else {
+            noCombination.setChecked(true);
+        }
+
+        //listeners para seekbar do canny
         cannySoftSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
@@ -800,17 +893,18 @@ public class BoxDetectionFragment extends Fragment{
 
         Button ok = dialog.findViewById(R.id.dialogOk);
         Button cancel = dialog.findViewById(R.id.dialogCancel);
-
         ok.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                //armazenando os valores alterados para as preferencias de usuario do aplicativo.
                 SharedPreferences sharedPreferences = getActivity().getSharedPreferences("BoxBoxPrefs", Context.MODE_PRIVATE);
                 SharedPreferences.Editor sharedPreferencesEditor = sharedPreferences.edit();
                 sharedPreferencesEditor.putInt("cannySoft", cannySoftSeekBar.getProgress());
                 sharedPreferencesEditor.putInt("cannyStrong", cannyStrongSeekBar.getProgress());
+                sharedPreferencesEditor.putBoolean("combinationHeuristic", combination.isChecked());
                 sharedPreferencesEditor.commit();
-                detectEdges();
-                Toast.makeText(getActivity(), "Novos valores foram definidos!!!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getActivity(), "Suas configurações foram atualizadas!", Toast.LENGTH_SHORT).show();
+                detectBoxes();
                 dialog.dismiss();
             }
         });
