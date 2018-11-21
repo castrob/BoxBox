@@ -261,7 +261,8 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
         }
 
         //chamando metodo para mostrar a primeira caixa encontrada pelo algoritmo
-        showFoundBoxOnScreen(0);
+        if(todasCaixas.isEmpty() == false)
+            showFoundBoxOnScreen(0);
     }
 
     /**
@@ -359,13 +360,6 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
         //Caso o teste volto positivo, achou uma caixa.
         if(test) {
             flag = true;
-            //Mostrar todas as retas da caixa.
-            for(int i = 0; i < 3; i++){
-                Imgproc.line(cdstP, linhasParalelas.get(posicao).linhas.get(x[i]).primeiro, linhasParalelas.get(posicao).linhas.get(x[i]).ultimo, new Scalar(255, 0, 0), 3, Imgproc.LINE_AA, 0);
-            }
-            for(int i = 0; i < 6; i++){
-                Imgproc.line(cdstP, todasLinhas.get(retas[i]).primeiro,todasLinhas.get(retas[i]).ultimo, new Scalar(255, 0, 0), 3, Imgproc.LINE_AA, 0);
-            }
             //Ordenando o vetor de retas, para que nao haja nenhum erro ao retilar elas na lista.
             Arrays.sort(retas);
             Caixas caixa = new Caixas();
@@ -672,17 +666,7 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
             }
         }
         if(pontos.size() == 7 && verificarVetor(passoTodos)) { // Para testar, mudar esses valores.
-            flag = true; // Para testar comente isso <<.
-
-            for(int i = 0; i < 3; i++){
-                Imgproc.line(cdstP, linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).primeiro, linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]).ultimo, new Scalar(255, 0, 0), 3, Imgproc.LINE_AA, 0);
-            }
-            for(int i = 0; i < 3; i++){
-                Imgproc.line(cdstP, linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]).primeiro, linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]).ultimo, new Scalar(255, 0, 0), 3, Imgproc.LINE_AA, 0);
-            }
-            for(int i = 0; i < 3; i++){
-                Imgproc.line(cdstP, linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).primeiro, linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]).ultimo, new Scalar(255, 0, 0), 3, Imgproc.LINE_AA, 0);
-            }
+            flag = true; //flag de validacao.
 
             Caixas caixa = new Caixas();
             //Retirando as retas na lista de 90 graus
