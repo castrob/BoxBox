@@ -10,9 +10,7 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.Fragment;
-import android.util.Log;
 import android.view.LayoutInflater;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -23,18 +21,21 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import org.opencv.android.Utils;
-import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.Point;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Arrays;
+
+/**
+ * Classe BoxDetectionFragment para lidar com o Fragment da tela de Deteccao de Caixas
+ * Nesta classe esta presente toda a logica e heuristicas para a deteccao das caixas.
+ */
 
 public class BoxDetectionFragment extends Fragment implements View.OnClickListener {
     //Variaveis globais.
@@ -46,18 +47,18 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
     double tamanhoDistancia;
     //double tamanhoDistancia3;
     int timeLimit, index;
-    Mat cdstP;
+    Mat cdstP, gray;
     ArrayList<LinhasParalelas> linhasParalelas;
     ArrayList<Linhas> todasLinhas;
     ArrayList<Caixas> todasCaixas;
 
 
     /**
-     * TODO: documentar
-     * @param inflater
-     * @param container
-     * @param savedInstanceState
-     * @return
+     * Metodo construtor do fragment android que contem toda a tela de deteccao da caixa.
+     * @param inflater Layout que ira inflar o xml com os objetos da tela
+     * @param container ViewGroup de elementos da tela.
+     * @param savedInstanceState Informacoes que podem ser salvas no ciclo de vida da tela.
+     * @return retorna uma View que e um objeto contendo todos os elementos do fragment.
      */
     @Nullable
     @Override
@@ -91,9 +92,11 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
     }
 
     /**
-     * TODO Documentar
-     * @param view
-     * @param savedInstanceState
+     * Este metodo faz parte do ciclo de vida do fragment, e e' chamado logo apos o construtor terminar,
+     * com ele temos o estado do fragment pronto para qualquer operacao ser executada no caso onde comecamos a deteccao
+     * da caixa.
+     * @param view objeto com todos os elementos do fragment.
+     * @param savedInstanceState nformacoes que podem ser salvas no ciclo de vida da tela.
      */
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
@@ -101,25 +104,29 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
         getActivity().setTitle("Box Detection");
         //Realizar o procedimento de detecção de bordas após o fragment ter carregado.
         try{
-            detectEdges();
+            detectBoxes();
         }catch (Exception e){
             e.printStackTrace();
         }
     }
 
     /**
-     * TODO: Documentar
-     * @param v
+     * Metodo listener para lidar com clicks dos botoes presentes no fragment como,
+     * o botao de configuracoes da deteccoes e os botoes de next e previous.
+     * @param v objeto do botao que recebeu o click.
      */
     @Override
     public void onClick(View v) {
         switch (v.getId()){
             case R.id.prev:
-                index = index > 0 ? index-- : 0;
+                index--;
+                index = index < 0 ? -1 * index : index;
+                index = index % todasCaixas.size();
                 showFoundBoxOnScreen(index);
                 break;
             case R.id.next:
-                index = (index+1 < todasCaixas.size()) ? index++ : index;
+                index++;
+                index = index % todasCaixas.size();
                 showFoundBoxOnScreen(index);
                 break;
             case R.id.fab:
@@ -129,25 +136,36 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
     }
 
     /**
-     * TODO: Documentar
-     * @param index
+     * Metodo para apresentar as caixas que foram detectadas pelo algoritmo separadamente
+     * @param index indice do array de caixas a ser mostrado.
      */
     private void showFoundBoxOnScreen(int index) {
-        Toast.makeText(getActivity(), index+"", Toast.LENGTH_SHORT).show();
+        //limpando caixa detectada e pegando nova caixa
+        cdstP = gray.clone();
+        caixaToMat(todasCaixas.get(index));
 
-        //TODO: fazer aqui algoritmo generico para mostrar as caixas encontradas
         Bitmap resultBitmap = Bitmap.createBitmap(cdstP.cols(), cdstP.rows(), Bitmap.Config.ARGB_8888);//Pega o bitmap do resultado.
         Utils.matToBitmap(cdstP, resultBitmap);
         imageView.setImageBitmap(resultBitmap);//Coloca a imagem.
     }
 
     /**
-     * Metodo para Achar somente as linhas, usando canny e a transformada de houghPrababilistica.
-     * TODO: Acho que podemos refatorar esse metodo, separar em metodos para primeiro tratar a imagem e depois rodar as heuristicas pois ele esta muito grande.
+     * Metodo para printar as caixas com as arestas vermelhas de largura 3
+     * @param caixa Caixa a ser printada
+     */
+    private void caixaToMat(Caixas caixa) {
+        int largura = 3;
+        for(int i = 0; i < caixa.linhas.size(); i++) {
+            Imgproc.line(cdstP, caixa.linhas.get(i).primeiro, caixa.linhas.get(i).ultimo, new Scalar(255, 0, 0), largura, Imgproc.LINE_AA, 0);
+        }
+    }
+
+    /**
+     * Metodo para Achar somente as linhas, usando canny e a transformada de hough Prababilistica.
+     * Este método também é responsavel pelo tratamento da imagem, como filtro bilateral, canny e transformada de hough.
      */
 
-    private void detectEdges() {
-
+    private void detectBoxes() {
         //Preparando para usar o canny.
         SharedPreferences sharedPreferences = getActivity().getSharedPreferences("BoxBoxPrefs", Context.MODE_PRIVATE);
         int cannySoft = sharedPreferences.getInt("cannySoft", 50);
@@ -162,42 +180,35 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
         tamanhoDistancia = ((size.height + size.width) / 100)*3; // Pegando o tamanhoDistancia limite para os calculos abaixo.
         double tamanhoDistancia2 = ((size.height + size.width) / 100)*1; // Pegando o tamanhoDistancia limite para o tamanhoDistancia de 2 linhas se encontrarem, para considerar uma linha so.
         //tamanhoDistancia3 =  ((size.height + size.width) / 100)*5;
-        System.out.println(tamanhoDistancia);
         Mat edges = new Mat();//(rgba.size(), CvType.CV_8UC3);
 
         Imgproc.cvtColor(rgba,rgba,Imgproc.COLOR_BGRA2BGR); // Passando a imagem para usar o filtro bilateral
-        Imgproc.bilateralFilter(rgba,edges,6,75,75); // Usando filtro bilateral
+        Imgproc.bilateralFilter(rgba,edges,6,75,75); // Usando filtro bilateral - SigmaColor e SigmaSpace (Vizinhanca de cores)
         Imgproc.cvtColor(rgba, edges, Imgproc.COLOR_RGB2GRAY, 4); //Passando para tons de cinza.
 
+        //Clonando a imagem em escala de cinza para ser utilizado na demonstracao da deteccao
+        gray = new Mat();
+        gray = edges.clone();
+        Imgproc.cvtColor(gray, gray, Imgproc.COLOR_GRAY2RGB); //voltando de escala de cinza para rgb para que a linha possa ser vermelha
 
-        Imgproc.Canny(edges, edges, cannySoft, cannyStrong,3,false);//Aplicando o Canny
-        Toast.makeText(getActivity(), "Running Canny with Values (" + cannySoft + ", " + cannyStrong + ") ", Toast.LENGTH_SHORT).show();//Mostrando os dados do canny.
-
-
+        Imgproc.Canny(edges, edges, cannySoft, cannyStrong,3,false);//Aplicando filtro de Canny
         Imgproc.dilate(edges, edges, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(2, 2)));//Dilatando as retas encontradas.
-        //Imgproc.erode(edges, edges, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3)));
 
         //Copy the image for hough transform
         cdstP = new Mat(); //Criando uma nova imagem.
         cdstP = rgba.clone();//Pegando um clone da imagem original.
 
-        //TODO: Talvez aqui podemos setar as imagens originais como null para liberar memoria ?
-
         // Utilizando a Transformada de Hough Probabilistica
-        Mat linesP = new Mat(); // will hold the results of the detection
+        Mat linesP = new Mat(); //Mat para o resultado da transformada de hough
         Imgproc.HoughLinesP(edges, linesP, 1, Math.PI/180, 50,tamanhoDistancia+10,(int)tamanhoDistancia2); // Executando a Transformada
         //Array de linhas encontradas pela t. hough
         ArrayList<Linhas> linhas = new ArrayList<Linhas>();
         Linhas linha;
-        // Draw the lines
         for (int x = 0; x < linesP.rows(); x++) {
             double[] l = linesP.get(x, 0);
-            //Imgproc.line(cdstP, new Point(l[0], l[1]), new Point(l[2], l[3]), new Scalar(0, 255, 0), 1, Imgproc.LINE_AA, 0); //Todas as linhas encontradas
             linha = new Linhas(new Point(l[0], l[1]), new Point(l[2], l[3]));//Criar uma linha
             linhas.add(linha);//Botar a linha no vetor de linhas
         }
-
-        //System.out.println("Size total:" + linhas.size() );
 
         timeLimit = 0;
         todasCaixas = new ArrayList<Caixas>();
@@ -206,22 +217,16 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
         int posicao = 0;
         todasLinhas = new ArrayList<Linhas>(); // Colocar todos as retas que nao sao do tipo 2.
         if(linhasParalelas.size() >= 3) { // Verificar se achou os 3 grupos.
-
             int[] x = new int[linhasParalelas.size()];
             flag = false;
             //Primeiro metodo para encontrar as caixas, usando 3 combinacoes.
             if (combinationHeuristic)
-
                 do{
-                    
-                    System.out.println("Entro aqui no while 1");
-                    tamanhoInicial = pegarTamanho1();
-                    System.out.println("Tamanho:" + tamanhoInicial);
+                    tamanhoInicial = tamanhoTotalDeLinhas();
                     flag = false;
                     combinacaoDeTodasRetas(linhasParalelas.size(), 3, x, 0, 0); // Metodo com todas combinações, principal metodo para achar a caixa.
-                    tamanhoFinal = pegarTamanho1();
+                    tamanhoFinal = tamanhoTotalDeLinhas();
                 }while(tamanhoInicial != tamanhoFinal && linhasParalelas.get(0).linhas.size() >= 3 && linhasParalelas.get(1).linhas.size() >= 3 && linhasParalelas.get(2).linhas.size() >= 3);
-
             else{
                 //Segundo metodo para encontrar as caixas, usando uma heuristica.
                 //Achar a posicao do tipo de reta = 2.
@@ -235,22 +240,21 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
                     if (i != posicao) {
                         for (int j = 0; j < linhasParalelas.get(i).linhas.size(); j++) {
                             todasLinhas.add(linhasParalelas.get(i).linhas.get(j));
-                            System.out.println("Tipo de reta: " + linhasParalelas.get(i).linhas.get(j).tipoReta);
                         }
                     }
                 }
                 do {
-                    System.out.println("Entrou aqui no while 2");
                     flag = false;
-                    tamanhoInicial = pegarTamanho2(posicao);
+                    tamanhoInicial = tamanhoTotalDeLinhasParalelas(posicao);
                     segundaHeuristica(posicao);//Outro metodo para encontrar a caixa.
-                    tamanhoFinal = pegarTamanho2(posicao);
+                    tamanhoFinal = tamanhoTotalDeLinhasParalelas(posicao);
                 }
                 while ( tamanhoInicial != tamanhoFinal && (linhasParalelas.get(posicao).linhas.size() >= 3 && todasLinhas.size() >= 6));
             }
         }
 
-        Toast.makeText(getActivity(), "Found Boxes: " + todasCaixas.size(), Toast.LENGTH_SHORT).show();//Mensagem de Caixas encontradas.
+        Toast.makeText(getActivity(), todasCaixas.size() + " Caixa(s) encontrada(s)", Toast.LENGTH_SHORT).show();//Mensagem de Caixas encontradas.
+        //caso possua mais de uma caixa, mostrar botoes de navegacao
         if(todasCaixas.size() > 1){
             prev.setVisibility(View.VISIBLE);
             next.setVisibility(View.VISIBLE);
@@ -264,7 +268,7 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
      * Pegar tamanho do vetor para primeira heuristica
      * @return
      */
-    private int pegarTamanho1() {
+    private int tamanhoTotalDeLinhas() {
         int resp = 0;
         for(int i = 0; i < linhasParalelas.size(); i++) {
             resp = resp + linhasParalelas.get(i).linhas.size();
@@ -277,29 +281,16 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
      * @param posicao posicao do vetor de linha paralelas
      * @return
      */
-    private int pegarTamanho2(int posicao) {
+    private int tamanhoTotalDeLinhasParalelas(int posicao) {
         return linhasParalelas.get(posicao).linhas.size() + todasLinhas.size();
     }
 
-    /**
-     * Metodo para printar as caixas com as arestas vermelhas de largura 3
-     * @param caixa Caixa a ser printada
-     */
-    private void printarCaixa(Caixas caixa) {
-        int largura = 3;
-        for(int i = 0; i < caixa.linhas.size(); i++) {
-            Imgproc.line(cdstP, caixa.linhas.get(i).primeiro, caixa.linhas.get(i).ultimo, new Scalar(255, 0, 0), largura, Imgproc.LINE_AA, 0);
-        }
-    }
 
     /**
      * Metodo para comecar a segunda heuristica.
      * @param posicao e a posicao da lista que as retas de 90 graus se encontram.
      */
     private void segundaHeuristica(int posicao) {
-        for(int i = 0; i < linhasParalelas.get(posicao).linhas.size(); i++) {
-           System.out.println(linhasParalelas.get(posicao).linhas.get(i).primeiro.x + " TipoReta: " + linhasParalelas.get(posicao).linhas.get(i).tipoReta );
-        }
         int[] x = new int[linhasParalelas.get(posicao).linhas.size()];
         combinacaoDeNoventaGraus(linhasParalelas.get(posicao).linhas.size(),3,x,0,0,posicao);
     }
@@ -316,10 +307,7 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
     private void combinacaoDeNoventaGraus(int n, int r, int x [], int next, int k,int posicao) {
         int i;
         if(k == r && flag != true) {
-            int tmp = acharCaixa(x,posicao);
-            if(tmp == 0) {
-                System.out.println("Achou a caixita");
-            }
+            int tmp = acharCaixa(x,posicao); // se tmp = 0 entao achou a caixa
         }else{
             for(i = next; i < n; i++) {
                 x[k] = i;
@@ -343,34 +331,34 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
             retas[i] = -1;
         }
 
-        int tmp1 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[0]).primeiro,linhasParalelas.get(posicao).linhas.get(x[1]).primeiro,linhasParalelas.get(posicao).linhas.get(x[1]).ultimo,retas);//Busca a primeira Reta.
+        int teste1 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[0]).primeiro,linhasParalelas.get(posicao).linhas.get(x[1]).primeiro,linhasParalelas.get(posicao).linhas.get(x[1]).ultimo,retas);//Busca a primeira Reta.
 
-        int tmp2 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[0]).ultimo,linhasParalelas.get(posicao).linhas.get(x[1]).primeiro,linhasParalelas.get(posicao).linhas.get(x[1]).ultimo,retas); //Busca a segunda Reta.
+        int teste2 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[0]).ultimo,linhasParalelas.get(posicao).linhas.get(x[1]).primeiro,linhasParalelas.get(posicao).linhas.get(x[1]).ultimo,retas); //Busca a segunda Reta.
 
         //Vericiar se encontrou a reta.
-        if(tmp1 == -1 || tmp2 == -1) {
+        if(teste1 == -1 || teste2 == -1) {
             return 1;
         }
         //Colocando as retas no vetor de posicoes das retas.
-        retas[0] = tmp1;
-        retas[1] = tmp2;
+        retas[0] = teste1;
+        retas[1] = teste2;
 
-        tmp1 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[1]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).ultimo,retas);//Busca a terceira Reta.
+        teste1 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[1]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).ultimo,retas);//Busca a terceira Reta.
 
-        tmp2 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[1]).ultimo,linhasParalelas.get(posicao).linhas.get(x[2]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).ultimo,retas);//Busca a quarta Reta.
+        teste2 = acharRetas(linhasParalelas.get(posicao).linhas.get(x[1]).ultimo,linhasParalelas.get(posicao).linhas.get(x[2]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).ultimo,retas);//Busca a quarta Reta.
 
-        if(tmp1 == -1 || tmp2 == -1) {
+        if(teste1 == -1 || teste2 == -1) {
             return 1;
         }
         //Colocando as retas no vetor de posicoes das retas.
-        retas[2] = tmp1;
-        retas[3] = tmp2;
+        retas[2] = teste1;
+        retas[3] = teste2;
+
         //Ultimo teste, verifica se acha as duas ultimas retas.
         boolean test = acharRetasFinais(linhasParalelas.get(posicao).linhas.get(x[0]).primeiro,linhasParalelas.get(posicao).linhas.get(x[0]).ultimo,linhasParalelas.get(posicao).linhas.get(x[2]).primeiro,linhasParalelas.get(posicao).linhas.get(x[2]).ultimo,retas);
         //Caso o teste volto positivo, achou uma caixa.
         if(test) {
             flag = true;
-            //TODO tirar esses prints, e criar um metodo para printar as retas já encontradas.
             //Mostrar todas as retas da caixa.
             for(int i = 0; i < 3; i++){
                 Imgproc.line(cdstP, linhasParalelas.get(posicao).linhas.get(x[i]).primeiro, linhasParalelas.get(posicao).linhas.get(x[i]).ultimo, new Scalar(255, 0, 0), 3, Imgproc.LINE_AA, 0);
@@ -383,13 +371,11 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
             Caixas caixa = new Caixas();
             //Retirando as retas na lista de 90 graus
             for(int i = 2; i >= 0; i--) {
-                System.out.println("90: " + x[i]);
                 caixa.linhas.add(linhasParalelas.get(posicao).linhas.get(x[i]));
                 linhasParalelas.get(posicao).linhas.remove(x[i]);
             }
             //Retirando as retas na lista das retas restantes
             for(int i = 5; i>= 0; i--) {
-                System.out.println("N90: " + retas[i]);
                 caixa.linhas.add(todasLinhas.get(retas[i]));
                 todasLinhas.remove((retas[i]));
             }
@@ -565,7 +551,6 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
     private void combinacaoDeTodasRetas(int n, int r, int x [],int next,int k) {
         int i;
         if(k == r && flag != true) {
-            //System.out.println("x 0 : " + x[0] );
             int size = linhasParalelas.get(x[0]).linhas.size();
             int [] tmp = new int [size];
             combinacao1(size,3,tmp,0,0,x);
@@ -589,7 +574,6 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
     private void combinacao1(int n, int r, int x [], int next, int k, int [] vetorRetasParalelas) {
         int i;
         if(k == r && flag != true) {
-            //System.out.println("x 1 : " + x[1] );
             int size = linhasParalelas.get(vetorRetasParalelas[1]).linhas.size();
             int [] tmp = new int [size];
             combinacao2(size,3,tmp,0,0,vetorRetasParalelas,x);
@@ -614,7 +598,6 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
     private void combinacao2(int n , int r, int x [] , int next, int k, int [] vetorRetasParalelas, int [] primeirasRetas) {
         int i;
         if(k == r && flag != true) {
-            //System.out.println("x 2 : " + x[2] );
             int size = linhasParalelas.get(vetorRetasParalelas[2]).linhas.size();
             int [] tmp = new int [size];
             combinacao3(size,3,tmp,0,0,vetorRetasParalelas,primeirasRetas,x);
@@ -688,7 +671,6 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
                 passoTodos.add(tmp);
             }
         }
-        //System.out.println("Contador : " + pontos.size() + "True :" + passoTodos.size());
         if(pontos.size() == 7 && verificarVetor(passoTodos)) { // Para testar, mudar esses valores.
             flag = true; // Para testar comente isso <<.
 
@@ -705,29 +687,21 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
             Caixas caixa = new Caixas();
             //Retirando as retas na lista de 90 graus
             for(int i = 2; i >= 0; i--) {
-                //System.out.println("90: " + x[i]);
                 caixa.linhas.add(linhasParalelas.get(vetorRetasParalelas[0]).linhas.get(primeirasRetas[i]));
                 linhasParalelas.get(vetorRetasParalelas[0]).linhas.remove(primeirasRetas[i]);
             }
             for(int i = 2; i >= 0; i--) {
-                //System.out.println("90: " + x[i]);
                 caixa.linhas.add(linhasParalelas.get(vetorRetasParalelas[1]).linhas.get(segundasRetas[i]));
                 linhasParalelas.get(vetorRetasParalelas[1]).linhas.remove(segundasRetas[i]);
             }
             //Retirando as retas na lista das retas restantes
             for(int i = 2; i>= 0; i--) {
-                //System.out.println("90: " + x[i]);
                 caixa.linhas.add(linhasParalelas.get(vetorRetasParalelas[2]).linhas.get(terceirasRetas[i]));
                 linhasParalelas.get(vetorRetasParalelas[2]).linhas.remove(terceirasRetas[i]);
             }
             //Adicionando a caixa no vetor de caixas.
             todasCaixas.add(caixa);
         }
-        //System.out.println("Começou aqui");
-        /*for(int i = 0; i < 7; i++){
-            //System.out.println("Pontos: " + passoTodos.get(i));
-        }*/
-        //System.out.println("Terminou aqui");
     }
 
     /**
@@ -740,7 +714,6 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
         for(int i = 0; i < passoTodos.size();i++) {
 
             if(passoTodos.get(i) == 1) {
-                //System.out.println("Numeros: "+passoTodos.get(i));
                 contador++;
             }
         }
@@ -750,7 +723,6 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
         for(int i = 0; i < passoTodos.size();i++) {
 
             if(passoTodos.get(i) == 2) {
-                //System.out.println("Numeros: "+passoTodos.get(i));
                 contador++;
             }
         }
@@ -806,7 +778,6 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
         for(int i = 0; i < linhas.size(); i++){
             linhasParalelas = new LinhasParalelas();
             linhasParalelas.linhas.add(linhas.get(i));
-            //System.out.println("A Teste: " + linhas.get(i).a);
             linhas.remove(i);
             i--;
             for(int j = i+1;  j < linhas.size();j++){
@@ -821,14 +792,12 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
                 for(int z = j+1; z < linhasParalelas.linhas.size();z++ ){
                     Linhas linha2 = linhasParalelas.linhas.get(z);
                     if (verificarRetasIguais(linha1, linha2)) {
-                        //System.out.println("Entro aqui1");
                         linhasParalelas.linhas.remove(z);
                         z--;
                     }
                 }
             }
             if(linhasParalelas.linhas.size() >= 3) {
-                //System.out.println("Passo aqui");
                 Collections.sort(linhasParalelas.linhas, new Comparator<Linhas>() {
                     public int compare(Linhas v1, Linhas v2) {
                         double tmp = v1.primeiro.x - v2.primeiro.x;
@@ -838,7 +807,6 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
                 todasLinhasParalelas.add(linhasParalelas);
             }
         }
-        System.out.println("Contador de retas: " + cont );
         return todasLinhasParalelas;
     }
 
@@ -853,12 +821,7 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
         double tmp2 = distanciaEuclidiana(linhas1.ultimo,linhas2.ultimo);
         double tmp3 = distanciaEuclidiana(linhas1.primeiro,linhas2.ultimo);
         double tmp4 = distanciaEuclidiana(linhas1.ultimo,linhas2.primeiro);
-        //System.out.println("Distancia tmp1: " + tmp1 + " Distancia tmp2: " + tmp2 + " Distancia tmp3: " + tmp3 + " Distancia tmp4: " + tmp4);
         if((tmp1 <= tamanhoDistancia && tmp2 <= tamanhoDistancia) || (tmp3 <= tamanhoDistancia  && tmp4 <= tamanhoDistancia)) {
-            //System.out.println("Distancia tmp1: " + tmp1 + " Distancia tmp2: " + tmp2 + " Distancia tmp3: " + tmp3 + " Distancia tmp4: " + tmp4);
-            //Imgproc.line(cdstP, linhas1.primeiro, linhas1.ultimo, new Scalar(255, 0, 0), 1, Imgproc.LINE_AA, 0);
-            //Imgproc.line(cdstP, linhas2.primeiro, linhas2.ultimo, new Scalar(0, 255, 0), 1, Imgproc.LINE_AA, 0);
-            //System.out.println("Excluiu");
             return true;
         }
         return false;
@@ -941,7 +904,7 @@ public class BoxDetectionFragment extends Fragment implements View.OnClickListen
                 sharedPreferencesEditor.putBoolean("combinationHeuristic", combination.isChecked());
                 sharedPreferencesEditor.commit();
                 Toast.makeText(getActivity(), "Suas configurações foram atualizadas!", Toast.LENGTH_SHORT).show();
-                detectEdges();
+                detectBoxes();
                 dialog.dismiss();
             }
         });
